@@ -1,0 +1,135 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import NewsletterSignup from '../../components/NewsletterSignup.astro';
+import { getCollection, type CollectionEntry } from 'astro:content';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('blog', ({ data }) => !data.draft);
+  return posts.map((post) => ({
+    params: { slug: post.slug },
+    props: { post },
+  }));
+}
+
+type Props = { post: CollectionEntry<'blog'> };
+
+const { post } = Astro.props;
+const { Content } = await post.render();
+const { title, date, description, tags, image, imageAlt } = post.data;
+
+const formattedDate = new Intl.DateTimeFormat('en-IE', {
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+}).format(date);
+
+const body = post.body ?? '';
+const wordCount = body.split(/\s+/).length;
+const readingTime = Math.max(1, Math.round(wordCount / 230));
+---
+
+<Layout title={`${title} — Robert McCaffrey`} description={description} image={image}>
+  <article class="max-w-[680px] mx-auto px-4 sm:px-6 py-12 sm:py-16">
+
+    <!-- Back link -->
+    <a
+      href="/blog"
+      class="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors mb-10 group"
+    >
+      <svg class="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+      </svg>
+      All posts
+    </a>
+
+    <!-- Header -->
+    <header class="mb-10">
+      <h1 class="text-3xl sm:text-4xl md:text-[42px] font-bold text-gray-900 dark:text-white leading-[1.15] tracking-tight mb-5">
+        {title}
+      </h1>
+      <p class="text-xl text-gray-500 dark:text-gray-400 leading-relaxed font-serif mb-6">
+        {description}
+      </p>
+      <div class="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400 pb-6 border-b border-gray-200 dark:border-gray-800">
+        <img
+          src="/profile.jpg"
+          alt="Robert McCaffrey"
+          class="w-8 h-8 rounded-full object-cover"
+        />
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="text-gray-900 dark:text-white font-medium">Robert McCaffrey</span>
+          <span class="text-gray-300 dark:text-gray-600">&middot;</span>
+          <time datetime={date.toISOString()}>
+            {formattedDate}
+          </time>
+          <span class="text-gray-300 dark:text-gray-600">&middot;</span>
+          <span>{readingTime} min read</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Hero image -->
+    {image && (
+      <figure class="mb-10 -mx-4 sm:-mx-6 md:-mx-10">
+        <img
+          src={image}
+          alt={imageAlt ?? title}
+          class="w-full rounded-xl object-cover max-h-[420px]"
+          loading="eager"
+        />
+      </figure>
+    )}
+
+    <!-- Post body -->
+    <div class="prose prose-lg prose-gray dark:prose-invert max-w-none font-serif
+      prose-headings:font-sans prose-headings:font-bold prose-headings:tracking-tight
+      prose-h2:text-2xl prose-h2:mt-12 prose-h2:mb-4
+      prose-h3:text-xl prose-h3:mt-8 prose-h3:mb-3
+      prose-p:leading-[1.8] prose-p:mb-6 prose-p:text-gray-700 dark:prose-p:text-gray-300
+      prose-a:text-blue-600 dark:prose-a:text-blue-400 prose-a:no-underline hover:prose-a:underline
+      prose-strong:text-gray-900 dark:prose-strong:text-white prose-strong:font-semibold
+      prose-code:text-blue-600 dark:prose-code:text-blue-400 prose-code:font-mono prose-code:text-sm prose-code:font-normal
+      prose-pre:bg-gray-900 dark:prose-pre:bg-gray-800 prose-pre:rounded-xl prose-pre:font-sans
+      prose-blockquote:border-l-gray-300 dark:prose-blockquote:border-l-gray-600 prose-blockquote:text-gray-600 dark:prose-blockquote:text-gray-400 prose-blockquote:not-italic prose-blockquote:font-normal
+      prose-img:rounded-xl prose-img:shadow-md
+      prose-li:leading-[1.8] prose-li:text-gray-700 dark:prose-li:text-gray-300
+      prose-hr:border-gray-200 dark:prose-hr:border-gray-800 prose-hr:my-10
+    ">
+      <Content />
+    </div>
+
+    <!-- Tags -->
+    {tags.length > 0 && (
+      <div class="mt-10 pt-6 border-t border-gray-200 dark:border-gray-800">
+        <div class="flex flex-wrap gap-2">
+          {tags.map((tag) => (
+            <span class="text-sm px-3 py-1.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+              {tag}
+            </span>
+          ))}
+        </div>
+      </div>
+    )}
+
+    <div class="mt-10">
+      <NewsletterSignup
+        title="Enjoyed this post?"
+        subtitle="Subscribe and I will email you whenever a new article goes live."
+      />
+    </div>
+
+    <!-- Footer -->
+    <footer class="mt-10 pt-8 border-t border-gray-200 dark:border-gray-800">
+      <a
+        href="/blog"
+        class="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors group"
+      >
+        <svg class="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+        </svg>
+        All posts
+      </a>
+    </footer>
+
+  </article>
+</Layout>

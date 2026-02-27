@@ -1,0 +1,99 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import ProjectCard from '../../components/ProjectCard.astro';
+import { getCollection } from 'astro:content';
+
+const allProjects = await getCollection('projects');
+const projects = allProjects.sort((a, b) => {
+  if (a.data.featured && !b.data.featured) return -1;
+  if (!a.data.featured && b.data.featured) return 1;
+  return a.data.order - b.data.order;
+});
+
+const allTech = [...new Set(projects.flatMap((p) => p.data.tech))].sort();
+---
+
+<Layout
+  title="Projects — Robert McCaffrey"
+  description="A selection of products and side-projects I've built or led as an engineering leader."
+>
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+    <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-3">Projects</h1>
+    <p class="text-lg text-gray-600 dark:text-gray-400 mb-10">
+      Products and side-projects I've built or led.
+    </p>
+
+    <!-- Tech filter -->
+    {allTech.length > 0 && (
+      <div class="flex flex-wrap gap-2 mb-10" role="group" aria-label="Filter by technology">
+        <button
+          class="tech-btn active px-3 py-1.5 text-xs font-semibold rounded-full border border-blue-500 bg-blue-500 text-white transition-colors"
+          data-tech="all"
+        >
+          All
+        </button>
+        {allTech.map((tech) => (
+          <button
+            class="tech-btn px-3 py-1.5 text-xs font-semibold rounded-full border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+            data-tech={tech}
+          >
+            {tech}
+          </button>
+        ))}
+      </div>
+    )}
+
+    <!-- Grid -->
+    <div id="projects-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {projects.map((project) => (
+        <div class="project-item" data-tech={project.data.tech.join(',')}>
+          <ProjectCard
+            title={project.data.title}
+            description={project.data.description}
+            tech={project.data.tech}
+            githubUrl={project.data.githubUrl}
+            liveUrl={project.data.liveUrl}
+            featured={project.data.featured}
+          />
+        </div>
+      ))}
+    </div>
+
+    <p id="no-projects" class="hidden text-center text-gray-500 dark:text-gray-400 py-16 text-sm">
+      No projects match that filter.
+    </p>
+  </div>
+</Layout>
+
+<script>
+  const techBtns  = document.querySelectorAll<HTMLButtonElement>('.tech-btn');
+  const items     = document.querySelectorAll<HTMLElement>('.project-item');
+  const noProjects = document.getElementById('no-projects')!;
+  let activeTech  = 'all';
+
+  techBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      activeTech = btn.dataset.tech ?? 'all';
+
+      techBtns.forEach((b) => {
+        const on = b.dataset.tech === activeTech;
+        b.classList.toggle('bg-blue-500', on);
+        b.classList.toggle('text-white', on);
+        b.classList.toggle('border-blue-500', on);
+        b.classList.toggle('text-gray-600', !on);
+        b.classList.toggle('dark:text-gray-400', !on);
+        b.classList.toggle('border-gray-200', !on);
+        b.classList.toggle('dark:border-gray-700', !on);
+      });
+
+      let visible = 0;
+      items.forEach((el) => {
+        const techs = (el.dataset.tech ?? '').split(',');
+        const show = activeTech === 'all' || techs.includes(activeTech);
+        el.style.display = show ? '' : 'none';
+        if (show) visible++;
+      });
+      noProjects.classList.toggle('hidden', visible > 0);
+    });
+  });
+</script>

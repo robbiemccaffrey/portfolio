@@ -1,0 +1,12 @@
+{
+  "name": "portfolio-api",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-ses": "^3.700.0",
+    "bcrypt": "^5.1.0"
+  }
+}

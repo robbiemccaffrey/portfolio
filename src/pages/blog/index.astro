@@ -1,0 +1,136 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import BlogCard from '../../components/BlogCard.astro';
+import NewsletterSignup from '../../components/NewsletterSignup.astro';
+import { getCollection } from 'astro:content';
+
+const allPosts = await getCollection('blog', ({ data }) => !data.draft);
+const posts = allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+
+const allTags = [...new Set(posts.flatMap((p) => p.data.tags))].sort();
+---
+
+<Layout
+  title="Blog — Robert McCaffrey"
+  description="Thoughts on engineering leadership, software architecture, and building great teams."
+>
+  <div class="max-w-2xl mx-auto px-4 sm:px-6 py-16">
+    <header class="mb-12">
+      <h1 class="text-4xl sm:text-5xl font-bold text-gray-900 dark:text-white tracking-tight">Blog</h1>
+      <p class="mt-4 text-lg text-gray-500 dark:text-gray-400 leading-relaxed">
+        Thoughts on engineering leadership, software architecture, and building teams.
+      </p>
+    </header>
+
+    <!-- Search & Tag filter -->
+    <div class="mb-8">
+      <div class="relative">
+        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+        <input
+          id="search"
+          type="search"
+          placeholder="Search posts..."
+          aria-label="Search blog posts"
+          class="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm transition-shadow"
+        />
+      </div>
+    </div>
+
+    {allTags.length > 0 && (
+      <div class="flex flex-wrap gap-2 mb-10" role="group" aria-label="Filter by tag">
+        <button class="tag-btn active px-3 py-1.5 text-xs font-medium rounded-full border transition-colors border-gray-900 dark:border-white bg-gray-900 dark:bg-white text-white dark:text-gray-900" data-tag="all">
+          All
+        </button>
+        {allTags.map((tag) => (
+          <button
+            class="tag-btn px-3 py-1.5 text-xs font-medium rounded-full border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
+            data-tag={tag}
+          >
+            {tag}
+          </button>
+        ))}
+      </div>
+    )}
+
+    <!-- Post list -->
+    <div id="posts-list" class="divide-y divide-gray-200 dark:divide-gray-800">
+      {posts.map((post) => (
+        <div
+          class="post-item"
+          data-title={post.data.title.toLowerCase()}
+          data-description={post.data.description.toLowerCase()}
+          data-tags={post.data.tags.join(',')}
+        >
+          <BlogCard post={post} />
+        </div>
+      ))}
+    </div>
+
+    <p id="no-results" class="hidden text-center text-gray-500 dark:text-gray-400 py-16 text-sm">
+      No posts match your search. Try different keywords or clear the filter.
+    </p>
+
+    <div class="mt-12">
+      <NewsletterSignup
+        title="Want the next post by email?"
+        subtitle="Subscribe once and you will get an email only when I publish something new."
+      />
+    </div>
+  </div>
+</Layout>
+
+<script>
+  const searchEl   = document.getElementById('search') as HTMLInputElement;
+  const tagBtns    = document.querySelectorAll<HTMLButtonElement>('.tag-btn');
+  const postItems  = document.querySelectorAll<HTMLElement>('.post-item');
+  const noResults  = document.getElementById('no-results')!;
+
+  let activeTag   = 'all';
+  let searchQuery = '';
+
+  function filter() {
+    let visible = 0;
+    postItems.forEach((el) => {
+      const matchesSearch =
+        !searchQuery ||
+        (el.dataset.title ?? '').includes(searchQuery) ||
+        (el.dataset.description ?? '').includes(searchQuery);
+      const matchesTag =
+        activeTag === 'all' ||
+        (el.dataset.tags ?? '').split(',').includes(activeTag);
+
+      const show = matchesSearch && matchesTag;
+      el.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+    noResults.classList.toggle('hidden', visible > 0);
+  }
+
+  searchEl.addEventListener('input', (e) => {
+    searchQuery = (e.target as HTMLInputElement).value.toLowerCase().trim();
+    filter();
+  });
+
+  tagBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      activeTag = btn.dataset.tag ?? 'all';
+      tagBtns.forEach((b) => {
+        const on = b.dataset.tag === activeTag;
+        b.classList.toggle('bg-gray-900', on);
+        b.classList.toggle('dark:bg-white', on);
+        b.classList.toggle('text-white', on);
+        b.classList.toggle('dark:text-gray-900', on);
+        b.classList.toggle('border-gray-900', on);
+        b.classList.toggle('dark:border-white', on);
+        b.classList.toggle('active', on);
+        b.classList.toggle('text-gray-600', !on);
+        b.classList.toggle('dark:text-gray-400', !on);
+        b.classList.toggle('border-gray-200', !on);
+        b.classList.toggle('dark:border-gray-700', !on);
+      });
+      filter();
+    });
+  });
+</script>

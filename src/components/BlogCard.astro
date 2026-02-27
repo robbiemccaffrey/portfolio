@@ -1,0 +1,54 @@
+---
+import type { CollectionEntry } from 'astro:content';
+
+export interface Props {
+  post: CollectionEntry<'blog'>;
+}
+
+const { post } = Astro.props;
+const { title, date, description, image, imageAlt } = post.data;
+
+const formattedDate = new Intl.DateTimeFormat('en-IE', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+}).format(date);
+
+const body = post.body ?? '';
+const wordCount = body.split(/\s+/).length;
+const readingTime = Math.max(1, Math.round(wordCount / 230));
+---
+
+<a
+  href={`/blog/${post.slug}`}
+  class="group block py-7"
+>
+  <div class="flex gap-5 items-start">
+    <div class="flex-1 min-w-0">
+      <h3 class="text-lg font-bold text-gray-900 dark:text-white leading-snug group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors tracking-tight mb-1.5">
+        {title}
+      </h3>
+
+      <p class="text-sm text-gray-500 dark:text-gray-400 leading-relaxed line-clamp-2 font-serif mb-3">
+        {description}
+      </p>
+
+      <div class="flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500">
+        <time datetime={date.toISOString()}>
+          {formattedDate}
+        </time>
+        <span>&middot;</span>
+        <span>{readingTime} min read</span>
+      </div>
+    </div>
+
+    {image && (
+      <img
+        src={image}
+        alt={imageAlt ?? title}
+        class="w-20 h-20 sm:w-24 sm:h-24 rounded object-cover shrink-0"
+        loading="lazy"
+      />
+    )}
+  </div>
+</a>

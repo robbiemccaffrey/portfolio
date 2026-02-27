@@ -1,0 +1,170 @@
+---
+title: "ISO 27001 at a Startup: What Nobody Tells You"
+date: 2026-02-27
+description: "What the consultants don't tell you about ISO 27001 certification, what actually matters, and what to do from day one."
+tags: ["startup-lessons", "security", "iso27001", "fintech"]
+image: "/images/blog/iso27001-hero.jpg"
+imageAlt: "Data centre server racks with blue lighting"
+draft: false
+---
+
+## What ISO 27001 Actually Is
+
+ISO 27001 is an international standard for an **Information Security Management System (ISMS)**. It's a framework that forces you to identify what data and systems you're responsible for, what could go wrong with them, and prove you have controls in place to manage those risks. It's not a technical standard — it doesn't tell you which firewall to use or how to configure your AWS account. It's a *management* standard that cares you have a process, that it's documented, that people follow it, and that you review and improve it over time. Certification is awarded by an accredited third-party auditor who spends 2–3 days going through your policies, interviewing staff, and examining your evidence.
+
+---
+
+## Do You Actually Need It?
+
+If you're selling to enterprise or regulated industries, yes. ISO 27001 is increasingly treated as a baseline in financial services, healthcare, and government procurement. It removes a blocker that your competitor might not have removed yet.
+
+If your customers are consumers or SMEs who never ask about your security posture, you can probably hold off until lost deals make the case for you.
+
+**ISO 27001 vs SOC 2:** it depends on geography. SOC 2 is what US enterprise buyers ask for. ISO 27001 is the standard across Europe, the UK, and Asia-Pacific. Don't get both unless you genuinely need both — they're expensive to maintain in parallel.
+
+**PCI DSS** only applies if you directly handle credit card data. Most startups should offload payments to Stripe or similar and stay out of scope entirely.
+
+---
+
+## What to Do From Day One: The Engineering Foundations
+
+This is where the real work lives. The policy documents and management framework matter, but the thing that will actually save or cost you weeks of time is the state of your infrastructure before you start. Here's what I'd tell every founding engineer to do from the beginning.
+
+> **Note:** The examples below use AWS, but the same principles apply on GCP and Azure. Terraform supports all three, so the infrastructure-as-code approach is the same regardless of cloud provider.
+
+### Use Terraform from day one
+
+I can't stress this enough. **Do not manage your infrastructure by clicking around in the AWS console.** I know it feels faster at the start — you're trying to ship, and clicking through the UI to spin up an RDS instance takes five minutes. Writing the Terraform module the first time takes longer. But you'll write it once. After that, spinning up a new environment is a `terraform apply`.
+
+The longer you go without infrastructure as code, the more painful the migration becomes. You accumulate manual state. People make undocumented changes. Nobody really knows what's running or why. By the time you decide to move to Terraform, you're doing archaeology — reverse-engineering what someone clicked on eighteen months ago — and you're doing it under pressure, because certification is coming up.
+
+Start with Terraform on day one and the audit becomes straightforward. Your infrastructure is documented by definition. Changes go through pull requests. You can show the auditor exactly what controls are in place, because they're written down in code.
+
+One more reason to do this now: with how capable AI coding tools like Claude Code have become, having your infrastructure in code means you can make changes faster than ever — describe what you want, get the Terraform, review it, apply it. It's genuinely powerful. **Just be extremely careful that you understand what Terraform is actually going to do before you run it. Read the plan. Read it again. Then read it one more time. `terraform plan` exists for a reason — use it every single time without exception.**
+
+### Use AWS Organizations to separate your environments
+
+If you only do one thing from this entire section, do this. Set up AWS Organizations and run production in one account, staging in another. This sounds like overhead when you're small. It isn't. This single change gets you almost half of the separation work done for free.
+
+The reason is permissions. When everything lives in one account, permissions become a mess over time. Developers need access to staging but shouldn't have it in production. IAM policies end up trying to handle this distinction with conditions and prefixes — it gets complicated fast and mistakes happen. With separate accounts, you grant someone access to the staging account and they simply can't touch production. It's the cleanest possible separation of concerns.
+
+It also makes your ISO 27001 access control evidence clean. "Who has access to production?" has a clear, auditable answer.
+
+**If you do this properly, you can skip the next two sections** — separate data stores and separate VPCs come for free when production and staging live in different AWS accounts.
+
+### Separate production and staging data from day one
+
+Don't share S3 buckets, databases, or any data store between production and staging. In the early days it's tempting to use one bucket for everything — never do this. When production and staging data live in separate resources, you get a clean blast radius: a bad deployment or a cleanup script gone wrong in staging can't touch production data. It also makes lifecycle management straightforward — when staging S3 buckets get too large, you can purge them without a second thought. And when the auditor asks how you ensure test data never mixes with customer data, the answer is simple: they're in completely separate resources.
+
+### Separate VPCs for production and staging
+
+If you're using AWS Organizations, you get this for free — each account has its own VPC. But if you have everything in the same account, at the very least put production and staging into different VPCs with separate security groups, separate load balancers, and separate subnets. It means a misconfiguration in staging can't reach production. It means your network topology is something you can explain and evidence, rather than something that evolved organically.
+
+### Move your secrets into AWS Secrets Manager from day one
+
+Don't put secrets in your codebase. Not even in environment variable files committed to a private repo. Not even "just for now."
+
+I know the counter-argument: Secrets Manager feels like complexity when you're two engineers trying to ship v1. It isn't. The setup cost is low, and the operational payoff is significant. Rotating credentials becomes a non-event. Access to secrets is auditable. You can give a Lambda function access to a database password without any human ever seeing that password.
+
+The alternative — secrets scattered across `.env` files, Slack messages, and deployment configs — creates a sprawling blast radius if any single thing is compromised. And it means, when ISO 27001 asks you to demonstrate how secrets are managed, you're either lying or embarrassed.
+
+### Get a password manager
+
+Don't share passwords over Slack. Don't keep them in a shared Google Doc. Get a proper password manager like 1Password or Bitwarden and use it from day one. It's worth the €7 per user per month. Every shared credential — third-party logins, API keys, service accounts — goes into a vault with proper access controls and an audit trail. When someone leaves, you revoke their access in one place. When the auditor asks how credentials are shared across your team, you have a real answer instead of an uncomfortable silence.
+
+### Enable 2FA on every third-party service
+
+Every SaaS tool, every cloud provider login, every service that supports two-factor authentication — turn it on. Don't make it optional, make it mandatory. This is one of the easiest controls to implement and one of the first things an auditor will check. A single compromised password without 2FA can give an attacker access to your entire toolchain.
+
+### Define IAM roles properly and manage them in Terraform
+
+Give every service, every Lambda, every EC2 instance its own IAM role with only the permissions it actually needs. Not `AdministratorAccess`. Not a shared role that three different things use because it was convenient.
+
+This is the principle of least privilege, and it's core to Annex A. When it's done as infrastructure as code, you get a clear record of what every part of your system can do. When it's done ad-hoc in the console, you get `arn:aws:iam::*:*` on things that only need to read from a single S3 bucket, and you find out at audit.
+
+### Put Cloudflare in front of everything from day one
+
+Cloudflare is one of the highest-leverage things you can add to your stack early and one of the easiest to justify to an ISO 27001 auditor. You get DDoS protection, a WAF, bot management, and a global CDN — all sitting in front of your infrastructure before a request ever reaches your servers.
+
+The security controls alone are worth it. Blocking traffic by country, blocking specific IPs, rate limiting by endpoint — things that would take real engineering work to build yourself are a few clicks in the Cloudflare dashboard. For a regulated product where you need to evidence network-level controls, having Cloudflare in the architecture is a clean answer to a lot of auditor questions.
+
+We migrated everything to Cloudflare a week before their [December 5, 2025 global outage](https://blog.cloudflare.com/5-december-2025-outage/) — 28% of HTTP traffic returned 500s for ~25 minutes. Timing is everything.
+
+### Use an identity provider — don't store passwords in your database
+
+Use AWS IAM Identity Center (formerly SSO) or a similar identity provider for internal access to your systems. The goal is that your engineers authenticate to AWS, to your internal tooling, to your deployment pipeline — all through a single identity that you control centrally.
+
+The practical benefit: when someone leaves the company, you disable one account and their access to everything is gone. No hunting through individual services to revoke permissions. No wondering whether you got everything.
+
+For your application users, the same principle applies — use **AWS Cognito** rather than rolling your own auth and storing password hashes in your database. Cognito handles the user pool, password policies, MFA, and token management for you. It also makes social logins (Google, Apple, Facebook) straightforward to add without building the OAuth flow yourself. And if you decide to build a native mobile app down the line, you're not rearchitecting your auth — it all goes through the same service. The fewer credentials you're directly responsible for storing and managing, the smaller your attack surface and the cleaner your ISO 27001 evidence.
+
+---
+
+**Keep an asset register.** Everything above is technical, but don't skip this: maintain a simple register of every system, data store, and third-party tool that touches customer data. A spreadsheet is fine. It's the first thing an auditor asks for, and reconstructing it from memory is miserable.
+
+---
+
+
+## The Painful Bits
+
+**HR controls.** Background checks, employment contracts with security clauses, joiners/movers/leavers processes. HR is often the last thing a startup formalises. ISO 27001 will force you to.
+
+**Physical security.** If you have an office, you'll need to evidence physical access controls. If you're fully remote, you still need a clear policy about it. Don't assume this is just about server rooms.
+
+**Certifications and memberships.** In practice, auditors expect to see demonstrable competence running the ISMS — often through recognised certifications like CISSP, CISM, or ISO 27001 Lead Implementer. On top of that, membership of a professional security body is often expected — organisations like (ISC)², ISACA, or BCS. Both cost money. The certification exams aren't cheap, and the annual membership fees add up. Factor them into your budget early rather than scrambling to tick the box before Stage 1.
+
+**The ongoing work.** Certification is not a finish line. You'll have surveillance audits annually and a re-certification audit every three years. Your ISMS needs to be a living system — regular risk reviews, management reviews, training, and keeping policies current as you ship new products.
+
+---
+
+## What It Actually Costs
+
+We're roughly **5 months in** from kickoff to Stage 2, with the process taking approximately **30–40% of my time** during peak periods alongside my engineering responsibilities.
+
+### Consultants and tooling
+
+Most providers charge in a similar ballpark — expect around **£10k a year** for a consultant or platform. What differs is the approach. Some are very hands-on: they sit with you, write policies alongside you, help you run the risk assessment, and guide you through every clause. Others are much more hands-off and compensate with technology — a GRC platform, automated evidence collection, questionnaire libraries, audit-ready templates. Neither is inherently better. If you have someone internally who can own the process and just needs structure, a tech-first provider saves time. If you're doing this for the first time and don't have that capacity, hands-on support is worth the cost. Work out which you are before you sign anything.
+
+### The audit itself
+
+The certification audit is separate from your consultant fees. A Stage 1 and Stage 2 audit from an accredited certification body typically runs around **£5k**, depending on scope and body. That gets you your certificate.
+
+Some providers bundle a **penetration test** into their package. If not, you'll need to commission one separately — budget **£3–4k** for a scoped external pen test. Most auditors will want to see evidence of recent pen testing, so this isn't optional.
+
+### Year 2 and year 3
+
+ISO 27001 certification doesn't last forever. After your initial certification, you'll have a **surveillance audit** in year 2 — a lighter-touch review to confirm you're maintaining the ISMS. Then a full **re-certification audit** in year 3. Both cost money, though the surveillance audit is typically less than the initial certification. Factor this in from the start. The annual consultant or platform fee continues too. Security compliance is an ongoing operating cost, not a one-time project.
+
+### Engineering time is the real cost
+
+All of the above is predictable. The thing that actually determines what this costs your company is engineering time — and that's entirely in your control.
+
+I've heard of teams completing ISO 27001 in 2–3 months. We're closer to 6 months from when we signed our contracts. That's not a failure — it reflects that this hasn't been our top priority every month. Some months we've pushed hard on it. Some months we've spent almost nothing on it because something more urgent took over. The speed of execution is directly proportional to how much it matters to your business right now.
+
+What you can't do when you have live customers is move fast on infrastructure changes. You can't decide on a Tuesday that you're going to restructure your AWS accounts, migrate your secrets, and separate your VPCs by Friday. You have uptime commitments. You have customers who would notice. Every change needs to be planned, tested, and rolled out carefully. That takes time — weeks or months, not days.
+
+This is exactly why the engineering foundations I mentioned earlier matter so much. If you've already got Terraform managing your infrastructure, already have secrets in Secrets Manager, already have separate accounts for production and staging — those aren't things you need to do under pressure during a certification process. You did them at the right time, when making the change was cheap. The teams who finish in 2–3 months either had their engineering already in good shape, or they didn't have customers yet and could afford to take the site down for hours at a time to make infrastructure changes. When you're pre-launch or pre-scale, you can move fast and break things. Once you have real users, every change carries risk and needs planning. The teams who take longer are the ones retrofitting those controls around a live product. Both paths get you certified. One costs you a lot more engineering hours to get there.
+
+---
+
+## Was It Worth It?
+
+Yes — but not only for the reasons I expected.
+
+The certification removes procurement blockers. That's real and measurable. But the more durable value was that it forced us to build a proper security culture while we were still small enough to do it without bureaucracy. Every engineer now understands why we have the controls we have. Offboarding actually gets done. Access reviews happen on a schedule.
+
+The companies that get breached usually knew what they should have done. ISO 27001 makes the gap between knowing and doing much smaller.
+
+**And at the very least — it helps you sleep better at night knowing it's all in place.**
+
+---
+
+## Questions?
+
+If you're a startup thinking about ISO 27001 and want to talk through any of this — whether it's scoping, the engineering foundations, picking a consultant, or just working out if it's the right time — feel free to reach out. I'm happy to help where I can.
+
+You can find me at [rmccaffr@tcd.ie](mailto:rmccaffr@tcd.ie) or on [LinkedIn](https://linkedin.com/in/robbiemc8).
+
+---
+
+*This is part of [Startup Lessons](/blog) — a series on the unglamorous, practical side of building companies.*

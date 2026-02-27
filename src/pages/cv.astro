@@ -1,0 +1,281 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const cvPath = '/cv/Robert_McCaffrey_CV.pdf';
+---
+
+<Layout
+  title="CV — Robert McCaffrey, Head of Engineering"
+  description="CV for Robert McCaffrey — Head of Engineering & ISO at TaxZap. 8+ years scaling fintech products in regulated environments."
+>
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+
+    <!-- ── Top bar ─────────────────────────────────────────── -->
+    <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-5 mb-12">
+      <div>
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white leading-tight">
+          Robert McCaffrey
+        </h1>
+        <p class="text-lg font-medium text-blue-600 dark:text-blue-400 mt-0.5">
+          Head of Engineering &amp; Information Security Officer
+        </p>
+        <div class="flex flex-wrap gap-x-5 gap-y-1 mt-2 text-sm text-gray-500 dark:text-gray-400">
+          <span>Dublin, Ireland</span>
+          <a href="tel:+353857113068" class="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">+353 85 711 3068</a>
+          <a href="mailto:rmccaffr@tcd.ie" class="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">rmccaffr@tcd.ie</a>
+          <a href="https://linkedin.com/in/robbiemc8" target="_blank" rel="noopener noreferrer" class="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">linkedin.com/in/robbiemc8</a>
+        </div>
+        <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">English (Native) · Italian (B1)</p>
+      </div>
+      <a
+        href={cvPath}
+        download="Robert_McCaffrey_CV.pdf"
+        class="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors shadow-sm text-sm self-start flex-shrink-0"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+        </svg>
+        Download PDF
+      </a>
+    </div>
+
+    <!-- ── Summary ────────────────────────────────────────── -->
+    <section class="mb-10">
+      <h2 class="section-heading">Summary</h2>
+      <p class="text-gray-700 dark:text-gray-300 leading-relaxed">
+        Hands-on Head of Engineering with 8+ years of experience building and scaling high-growth fintech products in regulated environments. Progressed from early-stage individual contributor to engineering leader, currently owning product, engineering, security, infrastructure, and the design and operation of LLM-based AI agents at TaxZap. Launched and scaled the UK AI-driven tax agent platform, supported a €2.6M seed raise, and led ISO 27001 compliance across HMRC and FCA-regulated systems. Remained deeply technical as a senior individual contributor across frontend, backend architecture, and production cloud systems while leading teams of up to 15 engineers.
+      </p>
+    </section>
+
+    <!-- ── Experience ─────────────────────────────────────── -->
+    <section class="mb-10">
+      <h2 class="section-heading">Experience</h2>
+      <div class="space-y-8">
+
+        <!-- TaxZap -->
+        <div class="job">
+          <div class="job-header">
+            <div>
+              <div class="flex flex-wrap items-baseline gap-x-2">
+                <a href="https://taxzap.com" target="_blank" rel="noopener noreferrer" class="job-company">TaxZap</a>
+                <span class="job-title">Head of Engineering &amp; Information Security Officer</span>
+              </div>
+              <div class="job-meta">
+                <span>Dublin, Ireland</span>
+                <span class="job-tech">TypeScript · Node.js · Terraform · AWS · MongoDB · React</span>
+              </div>
+            </div>
+            <time class="job-date">Jan 2024 – Present</time>
+          </div>
+          <ul class="bullets">
+            <li>Scaled and secured engineering, infrastructure, and security functions across the UK and Ireland, remaining hands-on as an individual contributor while architecting AWS infrastructure with Terraform and implementing CI/CD, observability, and DevSecOps practices.</li>
+            <li>Led ISO 27001 certification from the ground up — delivering policies, training, vendor management, and ongoing compliance in a regulated environment (HMRC &amp; FCA).</li>
+            <li>Designed and built AI agents for tax automation serving 125k+ users and multi-million-euro revenue, combining OCR, enrichment, and open banking integrations with LLM-based agents for customer interaction, including prompt iteration, benchmarking, and hallucination controls in production.</li>
+            <li>Led a 15-person engineering team and supported a <strong class="text-gray-900 dark:text-white">€2.6M seed raise</strong>.</li>
+          </ul>
+        </div>
+
+        <!-- Xelda -->
+        <div class="job">
+          <div class="job-header">
+            <div>
+              <div class="flex flex-wrap items-baseline gap-x-2">
+                <a href="https://xelda.com" target="_blank" rel="noopener noreferrer" class="job-company">Xelda</a>
+                <span class="job-title">Founding Engineer <span class="text-blue-500 dark:text-blue-400 font-normal text-xs">(Sequoia Arc '22)</span></span>
+              </div>
+              <div class="job-meta">
+                <span>Dublin, Ireland</span>
+                <span class="job-tech">Python · Django · AWS · Postgres · React</span>
+              </div>
+            </div>
+            <time class="job-date">Sep 2022 – Nov 2023</time>
+          </div>
+          <ul class="bullets">
+            <li>First engineering hire at a Sequoia Arc startup; defined the end-to-end technical vision and built the product, platform, and infrastructure from zero to production.</li>
+            <li>Designed and implemented complex payment initiation and automation workflows, integrating banks, banking-as-a-service providers, open banking APIs, and accountancy software into a unified platform.</li>
+            <li>Built, hired, and led the initial engineering team (1 → 6), acting as the primary technical partner to founders and customers, translating ambiguous business needs into production systems and AI-powered automated payment workflows.</li>
+          </ul>
+        </div>
+
+        <!-- Inscribe -->
+        <div class="job">
+          <div class="job-header">
+            <div>
+              <div class="flex flex-wrap items-baseline gap-x-2">
+                <a href="https://inscribe.ai" target="_blank" rel="noopener noreferrer" class="job-company">Inscribe.ai</a>
+                <span class="job-title">Staff Software Engineer <span class="text-blue-500 dark:text-blue-400 font-normal text-xs">(YC S18)</span></span>
+              </div>
+              <div class="job-meta">
+                <span>Dublin, Ireland</span>
+                <span class="job-tech">Python · Django · AWS · Postgres · Vue</span>
+              </div>
+            </div>
+            <time class="job-date">Jun 2019 – Sep 2022</time>
+          </div>
+          <ul class="bullets">
+            <li>Fourth engineering hire at a Y Combinator startup; built and owned Inscribe's enterprise partner API platform from the ground up, including external-facing APIs and documentation used by Stripe, Ramp, and Fortune 500 partners (e.g. HP), with contractual SLAs and internally defined SLOs for availability, latency, and reliability.</li>
+            <li>Scaled the fraud detection platform from inception to millions in ARR. Contributed to <strong class="text-gray-900 dark:text-white">$11M Series A</strong> (team of 6) and <strong class="text-gray-900 dark:text-white">$25M Series B</strong> fundraising rounds. Helped grow the team from 4 to 30+.</li>
+          </ul>
+        </div>
+
+        <!-- Toast / AOL -->
+        <div class="job">
+          <div class="job-header">
+            <div>
+              <div class="flex flex-wrap items-baseline gap-x-2">
+                <span class="job-company">Toast / AOL (Yahoo)</span>
+                <span class="job-title">Software Engineer</span>
+              </div>
+              <div class="job-meta">
+                <span>Dublin, Ireland</span>
+                <span class="job-tech">Java · Android · Postgres</span>
+              </div>
+            </div>
+            <time class="job-date">2017 – 2019</time>
+          </div>
+          <ul class="bullets">
+            <li>Built and maintained Java/Spring backend microservices and REST APIs on PostgreSQL, contributing to Android features and serving as Scrum master in agile delivery.</li>
+          </ul>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── Education ──────────────────────────────────────── -->
+    <section class="mb-10">
+      <h2 class="section-heading">Education</h2>
+      <div class="space-y-5">
+
+        <div class="job">
+          <div class="job-header">
+            <div>
+              <p class="job-company">Trinity College Dublin</p>
+              <p class="job-title">MSc Computer Science — <span class="text-blue-600 dark:text-blue-400">Distinction</span></p>
+            </div>
+            <time class="job-date">2016 – 2017</time>
+          </div>
+          <ul class="bullets">
+            <li>Peer-reviewed publication: <em>Video-Based Piano Music Transcription</em> (IMVIP, 2017).</li>
+          </ul>
+
+          <!-- Thesis card -->
+          <a
+            href="https://publications.scss.tcd.ie/theses/diss/2017/TCD-SCSS-DISSERTATION-2017-087.pdf"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="group mt-4 flex gap-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4 hover:border-blue-300 dark:hover:border-blue-700 hover:bg-blue-50/40 dark:hover:bg-blue-950/20 transition-all"
+          >
+            <!-- PDF icon -->
+            <div class="flex-shrink-0 mt-0.5">
+              <div class="w-9 h-9 rounded-lg bg-red-100 dark:bg-red-950 flex items-center justify-center">
+                <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+            </div>
+
+            <!-- Content -->
+            <div class="flex-1 min-w-0">
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-0.5">MSc Dissertation · TCD, 2017</p>
+                  <h3 class="text-sm font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-snug">
+                    Video-Based Piano Music Transcription
+                  </h3>
+                </div>
+                <svg class="w-4 h-4 text-gray-400 group-hover:text-blue-500 flex-shrink-0 mt-0.5 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </div>
+              <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                Explores automating piano transcription through computer vision (OpenCV), converting a video feed of a pianist into sheet music — without audio signal processing. A camera mounted overhead tracks key-press events in real time, identifying keys, timing, and note changes to produce a digital score. Evaluated against ABRSM grade pieces; achieved 78.7% precision and 93.6% recall.
+              </p>
+              <div class="mt-2 flex flex-wrap gap-1.5">
+                {['Computer Vision', 'OpenCV', 'Python', 'Music Transcription', 'ABRSM'].map(tag => (
+                  <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">{tag}</span>
+                ))}
+              </div>
+            </div>
+          </a>
+        </div>
+
+        <div class="job">
+          <div class="job-header">
+            <div>
+              <p class="job-company">Trinity College Dublin</p>
+              <p class="job-title">BA (Mod) Computer Science — <span class="text-blue-600 dark:text-blue-400">First Class Honours</span></p>
+            </div>
+            <time class="job-date">2012 – 2016</time>
+          </div>
+          <ul class="bullets">
+            <li>Exchange year at UNC Chapel Hill, North Carolina (2014–2015).</li>
+          </ul>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── Skills ─────────────────────────────────────────── -->
+    <section class="mb-12">
+      <h2 class="section-heading">Skills &amp; Technologies</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        {[
+          { label: 'Languages',     items: ['TypeScript', 'JavaScript', 'Python', 'Java'] },
+          { label: 'Backend',       items: ['Node.js', 'Django', 'Spring', 'REST APIs'] },
+          { label: 'Frontend',      items: ['React', 'Vue', 'Astro'] },
+          { label: 'Data',          items: ['PostgreSQL', 'MongoDB'] },
+          { label: 'Cloud & Infra', items: ['AWS', 'Terraform', 'CI/CD', 'DevSecOps'] },
+          { label: 'AI / ML',       items: ['LLM Agents', 'Prompt Engineering', 'OCR', 'Open Banking'] },
+          { label: 'Security',      items: ['ISO 27001', 'HMRC regulated', 'FCA regulated'] },
+          { label: 'Leadership',    items: ['Team scaling', 'Hiring', 'Fundraising'] },
+        ].map(({ label, items }) => (
+          <div class="rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 p-4">
+            <p class="text-xs font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-2.5">{label}</p>
+            <div class="flex flex-wrap gap-1.5">
+              {items.map(item => (
+                <span class="text-xs font-medium px-2.5 py-1 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300">
+                  {item}
+                </span>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+
+
+  </div>
+</Layout>
+
+<style>
+  .section-heading {
+    @apply text-lg font-bold text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-1.5 mb-5 uppercase tracking-wide text-sm;
+  }
+  .job {
+    @apply relative;
+  }
+  .job-header {
+    @apply flex flex-col sm:flex-row sm:items-start sm:justify-between gap-1 mb-2;
+  }
+  .job-company {
+    @apply font-bold text-gray-900 dark:text-white text-base;
+  }
+  a.job-company {
+    @apply hover:text-blue-600 dark:hover:text-blue-400 transition-colors;
+  }
+  .job-title {
+    @apply text-sm text-gray-700 dark:text-gray-300 font-medium;
+  }
+  .job-meta {
+    @apply flex flex-wrap gap-x-3 mt-0.5 text-xs text-gray-500 dark:text-gray-400;
+  }
+  .job-tech {
+    @apply text-blue-600 dark:text-blue-400 font-mono;
+  }
+  .job-date {
+    @apply text-xs font-mono text-gray-400 dark:text-gray-500 whitespace-nowrap flex-shrink-0 mt-0.5;
+  }
+  .bullets {
+    @apply list-disc list-outside ml-4 space-y-1.5 text-sm text-gray-600 dark:text-gray-400 leading-relaxed;
+  }
+</style>

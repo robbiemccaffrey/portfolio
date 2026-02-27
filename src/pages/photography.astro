@@ -1,0 +1,142 @@
+---
+import Layout from '../layouts/Layout.astro';
+import photosRaw from '../data/photos.json';
+
+type Photo = {
+  filename: string;
+  title: string;
+  location?: string;
+  date?: string;
+  camera?: string;
+};
+
+const photos = photosRaw as Photo[];
+---
+
+<Layout
+  title="Photography — Robert McCaffrey"
+  description="A collection of photographs by Robert McCaffrey, taken across Dublin and beyond."
+>
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+    <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-6">Photography</h1>
+    <div class="flex items-center gap-3 mb-12">
+      <div class="h-px flex-1 bg-gradient-to-r from-transparent via-gray-200 dark:via-gray-700 to-transparent"></div>
+      <p class="text-sm tracking-widest uppercase text-gray-400 dark:text-gray-500 font-medium whitespace-nowrap">
+        Sony Alpha 7 IV &nbsp;·&nbsp; FE 28–70mm f/3.5–5.6 OSS
+      </p>
+      <div class="h-px flex-1 bg-gradient-to-r from-transparent via-gray-200 dark:via-gray-700 to-transparent"></div>
+    </div>
+
+    {photos.length === 0 ? (
+      <div class="text-center py-24 text-gray-400 dark:text-gray-600">
+        <p class="text-lg mb-2">No photos yet.</p>
+        <p class="text-sm">Add images to <code class="font-mono text-xs">public/photos/</code> and entries to <code class="font-mono text-xs">src/content/photos.json</code>.</p>
+      </div>
+    ) : (
+      <div class="columns-1 sm:columns-2 lg:columns-3 gap-4">
+        {photos.map((photo, i) => (
+          <div class="break-inside-avoid mb-4">
+            <button
+              class="photo-btn w-full group relative overflow-hidden rounded-xl bg-gray-100 dark:bg-gray-800 block cursor-zoom-in focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              data-index={i}
+              data-src={`/photos/${photo.filename}`}
+              data-title={photo.title}
+              data-location={photo.location ?? ''}
+              data-date={photo.date ?? ''}
+              data-camera={photo.camera ?? ''}
+              aria-label={`View photo: ${photo.title}`}
+            >
+              <img
+                src={`/photos/${photo.filename}`}
+                alt={photo.title}
+                class="w-full object-cover group-hover:scale-[1.03] transition-transform duration-300"
+                loading="lazy"
+              />
+              <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end">
+                <div class="p-4">
+                  <p class="text-white font-medium text-sm leading-tight">{photo.title}</p>
+                  {photo.location && (
+                    <p class="text-gray-300 text-xs mt-0.5">{photo.location}</p>
+                  )}
+                </div>
+              </div>
+            </button>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+
+  <!-- Lightbox -->
+  <div
+    id="lightbox"
+    class="fixed inset-0 z-50 hidden bg-black/92 p-4 md:p-8 items-center justify-center"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Photo lightbox"
+  >
+    <button
+      id="lb-close"
+      class="absolute top-4 right-4 z-10 p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+      aria-label="Close lightbox"
+    >
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
+
+    <div class="max-w-5xl w-full flex flex-col items-center gap-4">
+      <img
+        id="lb-img"
+        src=""
+        alt=""
+        class="max-h-[75vh] w-auto max-w-full rounded-lg object-contain shadow-2xl"
+      />
+      <div class="text-center">
+        <p id="lb-title" class="text-white font-semibold text-base"></p>
+        <p id="lb-meta"  class="text-gray-400 text-sm mt-0.5"></p>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  const lightbox = document.getElementById('lightbox')!;
+  const lbImg    = document.getElementById('lb-img')   as HTMLImageElement;
+  const lbTitle  = document.getElementById('lb-title')!;
+  const lbMeta   = document.getElementById('lb-meta')!;
+  const lbClose  = document.getElementById('lb-close')!;
+
+  function openLightbox(btn: HTMLElement) {
+    lbImg.src        = btn.dataset.src   ?? '';
+    lbImg.alt        = btn.dataset.title ?? '';
+    lbTitle.textContent = btn.dataset.title ?? '';
+    lbMeta.textContent  = [btn.dataset.location, btn.dataset.date, btn.dataset.camera]
+      .filter(Boolean)
+      .join(' · ');
+    lightbox.classList.remove('hidden');
+    lightbox.classList.add('flex');
+    document.body.style.overflow = 'hidden';
+    lbClose.focus();
+  }
+
+  function closeLightbox() {
+    lightbox.classList.add('hidden');
+    lightbox.classList.remove('flex');
+    document.body.style.overflow = '';
+  }
+
+  document.querySelectorAll<HTMLButtonElement>('.photo-btn').forEach((btn) => {
+    btn.addEventListener('click', () => openLightbox(btn));
+  });
+
+  lbClose.addEventListener('click', closeLightbox);
+
+  lightbox.addEventListener('click', (e) => {
+    if (e.target === lightbox) closeLightbox();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeLightbox();
+  });
+</script>
