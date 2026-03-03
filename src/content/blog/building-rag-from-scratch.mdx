@@ -22,13 +22,15 @@ Before you can retrieve anything, you need a way to represent text as something 
 
 You generate embeddings by passing text through an embedding model. The output is a fixed-length array of floats — typically 256 to 3,072 dimensions depending on the model. Here's what one actually looks like:
 
-```
-"How do I reset my password?"
-
-→ [0.0231, -0.0892, 0.1345, 0.0012, -0.0567, 0.0891, ..., -0.0234]
-   ^                                                            ^
-   |_________________ 1,536 dimensions (text-embedding-3-small) |
-```
+<div class="not-prose my-8 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden text-sm font-mono">
+  <div class="px-5 py-3 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 font-sans text-xs font-medium uppercase tracking-wider">Input</div>
+  <div class="px-5 py-4 text-gray-900 dark:text-white">"How do I reset my password?"</div>
+  <div class="px-5 py-1 text-center text-gray-400 dark:text-gray-500 text-lg">↓ <span class="text-xs font-sans align-middle">text-embedding-3-small</span></div>
+  <div class="px-5 py-3 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 font-sans text-xs font-medium uppercase tracking-wider">Embedding — 1,536 dimensions</div>
+  <div class="px-5 py-4 text-blue-600 dark:text-blue-400 overflow-x-auto whitespace-nowrap">
+    [<span class="text-gray-900 dark:text-white">0.0231</span>, <span class="text-gray-900 dark:text-white">-0.0892</span>, <span class="text-gray-900 dark:text-white">0.1345</span>, <span class="text-gray-900 dark:text-white">0.0012</span>, <span class="text-gray-900 dark:text-white">-0.0567</span>, <span class="text-gray-900 dark:text-white">0.0891</span>, <span class="text-gray-400 dark:text-gray-500">… 1,530 more …</span>, <span class="text-gray-900 dark:text-white">-0.0234</span>]
+  </div>
+</div>
 
 Each number represents some learned aspect of the text's meaning. Individually they're not interpretable, but the vector as a whole places the text at a specific point in high-dimensional space. Texts with similar meanings end up near each other — "reset my password" and "change my login credentials" would have vectors pointing in nearly the same direction, even though the words are different.
 
@@ -66,31 +68,39 @@ The key insight is that **your chunk boundaries should align with the natural un
 
 **Overlap** means that consecutive chunks share some text at their boundaries — typically 10–20% of the chunk size. This is critical because without it, important information that happens to fall at a chunk boundary gets split across two vectors and may not be retrieved by either one.
 
-```
-Without overlap:
-┌─── Chunk 1 ──────────┐┌─── Chunk 2 ──────────┐
-│ The API uses bearer   ││ must be refreshed     │
-│ tokens for auth.      ││ every 30 minutes.     │
-│ Tokens ↵              ││ Use the /refresh...   │
-└───────────────────────┘└───────────────────────┘
-     ↑ "Tokens must be refreshed every 30 minutes" is split
-
-With overlap:
-┌─── Chunk 1 ────────────────┐
-│ The API uses bearer         │
-│ tokens for auth.            │
-│ Tokens must be refreshed    │
-│ every 30 minutes.           │
-└──────────┬──────────────────┘
-           │  overlap
-┌──────────┴──────────────────┐
-│ Tokens must be refreshed    │
-│ every 30 minutes.           │
-│ Use the /refresh endpoint   │
-│ to obtain a new token...    │
-└─────────────────────────────┘
-     ↑ Both chunks contain the full sentence
-```
+<div class="not-prose my-8 space-y-6">
+  <div>
+    <div class="text-xs font-semibold uppercase tracking-wider text-red-600 dark:text-red-400 mb-3">Without overlap — context lost at boundary</div>
+    <div class="flex gap-0">
+      <div class="flex-1 rounded-l-lg border border-r-0 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
+        <div class="text-xs font-semibold text-gray-400 dark:text-gray-500 mb-2">Chunk 1</div>
+        <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">The API uses bearer tokens for auth. Tokens</p>
+      </div>
+      <div class="flex-1 rounded-r-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
+        <div class="text-xs font-semibold text-gray-400 dark:text-gray-500 mb-2">Chunk 2</div>
+        <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">must be refreshed every 30 minutes. Use the /refresh…</p>
+      </div>
+    </div>
+    <p class="text-xs text-red-600 dark:text-red-400 mt-2 text-center">"Tokens must be refreshed every 30 minutes" is split across chunks — neither chunk contains the full sentence</p>
+  </div>
+  <div>
+    <div class="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-3">With overlap — context preserved</div>
+    <div class="space-y-0">
+      <div class="rounded-t-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
+        <div class="text-xs font-semibold text-gray-400 dark:text-gray-500 mb-2">Chunk 1</div>
+        <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">The API uses bearer tokens for auth. <span class="bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 px-1 rounded">Tokens must be refreshed every 30 minutes.</span></p>
+      </div>
+      <div class="flex items-center justify-center -my-3 relative z-10">
+        <span class="text-xs font-semibold bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 px-3 py-1 rounded-full">overlap</span>
+      </div>
+      <div class="rounded-b-lg border border-t-0 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
+        <div class="text-xs font-semibold text-gray-400 dark:text-gray-500 mb-2">Chunk 2</div>
+        <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed"><span class="bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 px-1 rounded">Tokens must be refreshed every 30 minutes.</span> Use the /refresh endpoint to obtain a new token…</p>
+      </div>
+    </div>
+    <p class="text-xs text-emerald-600 dark:text-emerald-400 mt-2 text-center">Both chunks contain the complete sentence — either one will match a relevant query</p>
+  </div>
+</div>
 
 This matters more for narrative content — documentation, reports, articles — where ideas flow across paragraphs. For content with clear boundaries like FAQs, overlap is less important because each chunk is already self-contained.
 
@@ -132,16 +142,29 @@ Once you have embeddings, you need somewhere to store them and a way to search t
 
 Here's what a row in a vector store actually looks like — it's just your text, some metadata, and that big array of floats sitting alongside it:
 
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│  id:        "chunk_042"                                              │
-│  content:   "To authenticate, include a Bearer token in the         │
-│              Authorization header. Tokens expire after 30 minutes."  │
-│  source:    "api-docs/authentication.md"                             │
-│  embedding: [0.0231, -0.0892, 0.1345, 0.0012, -0.0567, ...]        │
-│              \_______________ 1,536 floats ________________/         │
-└──────────────────────────────────────────────────────────────────────┘
-```
+<div class="not-prose my-8 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden text-sm">
+  <div class="px-5 py-2.5 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 font-sans text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Row in a vector store</div>
+  <table class="w-full">
+    <tbody>
+      <tr class="border-b border-gray-100 dark:border-gray-800">
+        <td class="px-5 py-2.5 font-mono text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap align-top w-28">id</td>
+        <td class="px-5 py-2.5 font-mono text-gray-900 dark:text-white">"chunk_042"</td>
+      </tr>
+      <tr class="border-b border-gray-100 dark:border-gray-800">
+        <td class="px-5 py-2.5 font-mono text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap align-top">content</td>
+        <td class="px-5 py-2.5 text-gray-700 dark:text-gray-300 font-serif">"To authenticate, include a Bearer token in the Authorization header. Tokens expire after 30 minutes."</td>
+      </tr>
+      <tr class="border-b border-gray-100 dark:border-gray-800">
+        <td class="px-5 py-2.5 font-mono text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap align-top">source</td>
+        <td class="px-5 py-2.5 font-mono text-gray-900 dark:text-white">"api-docs/authentication.md"</td>
+      </tr>
+      <tr>
+        <td class="px-5 py-2.5 font-mono text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap align-top">embedding</td>
+        <td class="px-5 py-2.5 font-mono text-blue-600 dark:text-blue-400 overflow-x-auto"><span class="text-gray-900 dark:text-white">[0.0231, -0.0892, 0.1345, …]</span> <span class="text-xs text-gray-400 dark:text-gray-500 font-sans">1,536 floats</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 
 When a user asks a question, their query gets embedded into the same vector space, and the store finds the rows whose embedding vectors are closest to the query vector.
 
@@ -163,65 +186,110 @@ When the store compares two vectors, it needs a way to measure "closeness." Ther
 
 **Cosine similarity** measures the angle between two vectors, ignoring their magnitude. Two vectors pointing in the same direction have a cosine similarity of 1, perpendicular vectors score 0, and opposite vectors score -1.
 
-```
-  cosine_similarity(A, B) = (A · B) / (‖A‖ × ‖B‖)
-
-  where A · B is the dot product and ‖A‖ is the vector's magnitude
-```
+<div class="not-prose my-6 px-5 py-4 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 text-center font-mono text-sm text-gray-900 dark:text-white">
+  cosine_similarity(<span class="text-blue-600 dark:text-blue-400 font-semibold">A</span>, <span class="text-emerald-600 dark:text-emerald-400 font-semibold">B</span>) = (<span class="text-blue-600 dark:text-blue-400">A</span> · <span class="text-emerald-600 dark:text-emerald-400">B</span>) / (‖<span class="text-blue-600 dark:text-blue-400">A</span>‖ × ‖<span class="text-emerald-600 dark:text-emerald-400">B</span>‖)
+</div>
 
 Here's the intuition. Imagine squashing 1,536 dimensions down to just 2:
 
-```
-         High similarity (0.95)           Low similarity (0.15)
-
-         "reset my password"              "reset my password"
-             ↗  ↗                             ↗
-            /  /                             /
-           / / ← small angle               / ← large angle
-          / /                              /
-         //                               /____________→
-        /                                 "quarterly revenue report"
-       "change my login
-        credentials"
-
-   Same direction = same meaning.     Different directions = different topics.
-```
+<div class="not-prose my-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
+  <div class="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div class="px-4 py-2 bg-emerald-50 dark:bg-emerald-900/20 border-b border-gray-200 dark:border-gray-700">
+      <span class="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">High similarity — 0.95</span>
+    </div>
+    <div class="p-4 flex justify-center">
+      <svg viewBox="0 0 200 160" class="w-full max-w-[200px]" aria-label="Two vectors pointing in nearly the same direction, showing high cosine similarity">
+        <defs>
+          <marker id="ah1" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" class="fill-blue-500"/></marker>
+          <marker id="ah2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" class="fill-emerald-500"/></marker>
+        </defs>
+        <line x1="30" y1="130" x2="170" y2="130" class="stroke-gray-200 dark:stroke-gray-700" stroke-width="1"/>
+        <line x1="30" y1="130" x2="30" y2="20" class="stroke-gray-200 dark:stroke-gray-700" stroke-width="1"/>
+        <line x1="30" y1="130" x2="160" y2="40" class="stroke-blue-500" stroke-width="2.5" marker-end="url(#ah1)"/>
+        <line x1="30" y1="130" x2="150" y2="30" class="stroke-emerald-500" stroke-width="2.5" marker-end="url(#ah2)"/>
+        <path d="M 55 118 A 30 30 0 0 0 52 113" class="stroke-gray-400 dark:stroke-gray-500" stroke-width="1" fill="none"/>
+        <text x="64" y="110" class="fill-gray-500 dark:fill-gray-400" font-size="10" font-family="system-ui">12°</text>
+        <text x="162" y="38" class="fill-blue-600 dark:fill-blue-400" font-size="9" font-family="system-ui" font-weight="600">A</text>
+        <text x="152" y="26" class="fill-emerald-600 dark:fill-emerald-400" font-size="9" font-family="system-ui" font-weight="600">B</text>
+      </svg>
+    </div>
+    <div class="px-4 py-3 bg-gray-50 dark:bg-gray-800/30 border-t border-gray-200 dark:border-gray-700 text-center">
+      <p class="text-xs text-gray-600 dark:text-gray-400"><span class="text-blue-600 dark:text-blue-400 font-semibold">A</span> "reset my password"</p>
+      <p class="text-xs text-gray-600 dark:text-gray-400"><span class="text-emerald-600 dark:text-emerald-400 font-semibold">B</span> "change my login credentials"</p>
+    </div>
+  </div>
+  <div class="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div class="px-4 py-2 bg-red-50 dark:bg-red-900/20 border-b border-gray-200 dark:border-gray-700">
+      <span class="text-xs font-semibold uppercase tracking-wider text-red-700 dark:text-red-400">Low similarity — 0.15</span>
+    </div>
+    <div class="p-4 flex justify-center">
+      <svg viewBox="0 0 200 160" class="w-full max-w-[200px]" aria-label="Two vectors pointing in very different directions, showing low cosine similarity">
+        <defs>
+          <marker id="ah3" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" class="fill-blue-500"/></marker>
+          <marker id="ah4" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" class="fill-red-500"/></marker>
+        </defs>
+        <line x1="30" y1="130" x2="170" y2="130" class="stroke-gray-200 dark:stroke-gray-700" stroke-width="1"/>
+        <line x1="30" y1="130" x2="30" y2="20" class="stroke-gray-200 dark:stroke-gray-700" stroke-width="1"/>
+        <line x1="30" y1="130" x2="150" y2="30" class="stroke-blue-500" stroke-width="2.5" marker-end="url(#ah3)"/>
+        <line x1="30" y1="130" x2="170" y2="112" class="stroke-red-500" stroke-width="2.5" marker-end="url(#ah4)"/>
+        <path d="M 58 120 A 30 30 0 0 0 52 113" class="stroke-gray-400 dark:stroke-gray-500" stroke-width="1" fill="none"/>
+        <text x="62" y="115" class="fill-gray-500 dark:fill-gray-400" font-size="10" font-family="system-ui">80°</text>
+        <text x="152" y="26" class="fill-blue-600 dark:fill-blue-400" font-size="9" font-family="system-ui" font-weight="600">A</text>
+        <text x="170" y="108" class="fill-red-600 dark:fill-red-400" font-size="9" font-family="system-ui" font-weight="600">B</text>
+      </svg>
+    </div>
+    <div class="px-4 py-3 bg-gray-50 dark:bg-gray-800/30 border-t border-gray-200 dark:border-gray-700 text-center">
+      <p class="text-xs text-gray-600 dark:text-gray-400"><span class="text-blue-600 dark:text-blue-400 font-semibold">A</span> "reset my password"</p>
+      <p class="text-xs text-gray-600 dark:text-gray-400"><span class="text-red-600 dark:text-red-400 font-semibold">B</span> "quarterly revenue report"</p>
+    </div>
+  </div>
+</div>
 
 Cosine similarity is the default for most embedding models because it normalises for vector length — a short chunk and a long chunk about the same topic will still score high.
 
 **Dot product** is the numerator of cosine similarity without the normalisation:
 
-```
-  dot_product(A, B) = A · B = Σ(aᵢ × bᵢ)
-
-  ┌─────────────────────────────────────────────────────┐
-  │ A = [0.5, 0.3]    B = [0.4, 0.6]                   │
-  │                                                     │
-  │ dot = (0.5 × 0.4) + (0.3 × 0.6) = 0.20 + 0.18     │
-  │     = 0.38                                          │
-  └─────────────────────────────────────────────────────┘
-```
+<div class="not-prose my-6 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden text-sm">
+  <div class="px-5 py-3 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 text-center font-mono text-gray-900 dark:text-white">
+    dot_product(<span class="text-blue-600 dark:text-blue-400 font-semibold">A</span>, <span class="text-emerald-600 dark:text-emerald-400 font-semibold">B</span>) = <span class="text-blue-600 dark:text-blue-400">A</span> · <span class="text-emerald-600 dark:text-emerald-400">B</span> = Σ(aᵢ × bᵢ)
+  </div>
+  <div class="px-5 py-4 space-y-2 font-mono text-gray-700 dark:text-gray-300">
+    <p><span class="text-blue-600 dark:text-blue-400 font-semibold">A</span> = [0.5, 0.3] &nbsp;&nbsp; <span class="text-emerald-600 dark:text-emerald-400 font-semibold">B</span> = [0.4, 0.6]</p>
+    <p class="text-gray-400 dark:text-gray-500">dot = (<span class="text-gray-900 dark:text-white">0.5 × 0.4</span>) + (<span class="text-gray-900 dark:text-white">0.3 × 0.6</span>) = 0.20 + 0.18 = <span class="text-gray-900 dark:text-white font-semibold">0.38</span></p>
+  </div>
+</div>
 
 It's faster to compute because it skips the magnitude calculation. But it's sensitive to vector length — a longer vector will score higher just because it's longer, not because it's more similar. This works fine when your embedding model produces normalised vectors (many do), but can give misleading results if they're not normalised.
 
 **Euclidean distance** measures the straight-line distance between two points in the vector space:
 
-```
-  euclidean(A, B) = √(Σ(aᵢ - bᵢ)²)
-
-         B (0.4, 0.6)
-         •
-        /|
-       / |
-  d   /  | Δy = 0.3
-     /   |
-    /    |
-   •─────
-   A (0.5, 0.3)
-     Δx = 0.1
-
-   d = √(0.1² + 0.3²) = √0.10 ≈ 0.316
-```
+<div class="not-prose my-6 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden text-sm">
+  <div class="px-5 py-3 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 text-center font-mono text-gray-900 dark:text-white">
+    euclidean(<span class="text-blue-600 dark:text-blue-400 font-semibold">A</span>, <span class="text-emerald-600 dark:text-emerald-400 font-semibold">B</span>) = √(Σ(aᵢ - bᵢ)²)
+  </div>
+  <div class="flex flex-col sm:flex-row items-center gap-4 p-5">
+    <div class="flex justify-center">
+      <svg viewBox="0 0 180 160" class="w-full max-w-[180px]" aria-label="Two points A and B in 2D space with a dashed line showing the Euclidean distance between them">
+        <line x1="30" y1="140" x2="160" y2="140" class="stroke-gray-200 dark:stroke-gray-700" stroke-width="1"/>
+        <line x1="30" y1="140" x2="30" y2="20" class="stroke-gray-200 dark:stroke-gray-700" stroke-width="1"/>
+        <line x1="110" y1="110" x2="80" y2="40" class="stroke-amber-500" stroke-width="2" stroke-dasharray="6 4"/>
+        <line x1="110" y1="110" x2="80" y2="110" class="stroke-gray-300 dark:stroke-gray-600" stroke-width="1" stroke-dasharray="3 3"/>
+        <line x1="80" y1="110" x2="80" y2="40" class="stroke-gray-300 dark:stroke-gray-600" stroke-width="1" stroke-dasharray="3 3"/>
+        <circle cx="110" cy="110" r="5" class="fill-blue-500"/>
+        <circle cx="80" cy="40" r="5" class="fill-emerald-500"/>
+        <text x="118" y="116" class="fill-blue-600 dark:fill-blue-400" font-size="11" font-family="system-ui" font-weight="600">A</text>
+        <text x="86" y="38" class="fill-emerald-600 dark:fill-emerald-400" font-size="11" font-family="system-ui" font-weight="600">B</text>
+        <text x="100" y="70" class="fill-amber-600 dark:fill-amber-400" font-size="10" font-family="system-ui" font-weight="500" transform="rotate(-67, 100, 70)">d</text>
+        <text x="85" y="126" class="fill-gray-400 dark:fill-gray-500" font-size="9" font-family="system-ui">Δx</text>
+        <text x="62" y="78" class="fill-gray-400 dark:fill-gray-500" font-size="9" font-family="system-ui">Δy</text>
+      </svg>
+    </div>
+    <div class="font-mono text-gray-700 dark:text-gray-300 space-y-1.5">
+      <p><span class="text-blue-600 dark:text-blue-400 font-semibold">A</span> = (0.5, 0.3) &nbsp;&nbsp; <span class="text-emerald-600 dark:text-emerald-400 font-semibold">B</span> = (0.4, 0.6)</p>
+      <p class="text-gray-400 dark:text-gray-500"><span class="text-amber-600 dark:text-amber-400">d</span> = √(0.1² + 0.3²) = √0.10 ≈ <span class="text-gray-900 dark:text-white font-semibold">0.316</span></p>
+    </div>
+  </div>
+</div>
 
 Lower distance means more similar. It works well in many cases but is sensitive to magnitude — two vectors about the same topic but with different scales will appear further apart than they should.
 
