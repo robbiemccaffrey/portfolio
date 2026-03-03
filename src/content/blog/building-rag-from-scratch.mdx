@@ -12,7 +12,7 @@ Large language models are impressive, but they have two fundamental problems whe
 
 **Retrieval-augmented generation (RAG)** solves both of these. Instead of relying on what the model already knows, you retrieve relevant documents at query time and inject them into the prompt as context. The model then generates a response grounded in your actual data rather than its training set. It's not a new idea — it's essentially a search engine feeding results to an LLM — but the execution details matter enormously.
 
-I've built several RAG systems now, from simple prototypes to production pipelines. This is what I wish someone had told me at the start.
+This is what I wish someone had told me when I started learning about it.
 
 ---
 
@@ -20,9 +20,19 @@ I've built several RAG systems now, from simple prototypes to production pipelin
 
 Before you can retrieve anything, you need a way to represent text as something a computer can compare. That's what **embeddings** are — numerical vectors that capture the semantic meaning of a piece of text. Two sentences that mean similar things will have vectors that are close together in high-dimensional space, even if they use completely different words.
 
-You generate embeddings by passing text through an embedding model. The output is a fixed-length array of floats — typically 256 to 3,072 dimensions depending on the model.
+You generate embeddings by passing text through an embedding model. The output is a fixed-length array of floats — typically 256 to 3,072 dimensions depending on the model. Here's what one actually looks like:
 
-The model you choose matters. **OpenAI's `text-embedding-3-small`** is a solid default — it's cheap, fast, and performs well on most retrieval benchmarks. If you need better accuracy and don't mind the cost, `text-embedding-3-large` is worth testing. On the open-source side, models from the **Sentence Transformers** family (like `all-MiniLM-L6-v2`) are free and run locally, which matters if you have data residency constraints.
+```
+"How do I reset my password?"
+
+→ [0.0231, -0.0892, 0.1345, 0.0012, -0.0567, 0.0891, ..., -0.0234]
+   ^                                                            ^
+   |_________________ 1,536 dimensions (text-embedding-3-small) |
+```
+
+Each number represents some learned aspect of the text's meaning. Individually they're not interpretable, but the vector as a whole places the text at a specific point in high-dimensional space. Texts with similar meanings end up near each other — "reset my password" and "change my login credentials" would have vectors pointing in nearly the same direction, even though the words are different.
+
+The model you choose matters. **OpenAI's `text-embedding-3-small`** is a solid default — it's cheap, fast, produces 1,536-dimension vectors, and performs well on most retrieval benchmarks. If you need better accuracy and don't mind the cost, `text-embedding-3-large` (3,072 dimensions) is worth testing. On the open-source side, models from the **Sentence Transformers** family (like `all-MiniLM-L6-v2`, 384 dimensions) are free and run locally, which matters if you have data residency constraints.
 
 > **One important thing:** once you pick an embedding model, you're committed to it. Your queries and your stored documents need to use the same model. Switching later means re-embedding your entire corpus.
 
@@ -34,20 +44,66 @@ You can't just embed an entire 50-page document as a single vector. The embeddin
 
 This sounds simple. It isn't. Chunking strategy has a bigger impact on retrieval quality than almost any other decision you'll make.
 
+### Chunking strategies
+
 **Fixed-size chunking** is the simplest approach — split every N characters or tokens. It's fast and predictable, but it splits mid-sentence and ignores document structure. You'll get chunks that start halfway through a paragraph and end in the middle of a code block.
 
 **Recursive character splitting** is a better default. It tries to split on paragraph boundaries first, then sentences, then words, only falling back to character-level splits when necessary. It respects the natural structure of text.
 
 **Semantic chunking** groups text by meaning — it embeds individual sentences and creates chunk boundaries where the embedding similarity drops. It's more expensive to compute but produces chunks that are semantically coherent.
 
-In practice, **recursive character splitting with overlap** is where I start every project. Something like this:
+### Chunk size matters — a lot
+
+A typical starting point is **256–512 tokens** per chunk. That's roughly a paragraph or two of text. But the right size depends entirely on what you're building.
+
+**Smaller chunks (128–256 tokens)** give you more precise retrieval — each chunk covers one specific idea, so the vector representation is focused. The trade-off is that you lose surrounding context. These work well for **FAQ systems** where each question-answer pair is a natural, self-contained unit. If someone asks "How do I reset my password?", you want to retrieve exactly the chunk that answers that question, not a chunk that also covers account deletion and billing changes.
+
+**Larger chunks (512–1,024 tokens)** give the model more context per retrieval hit but produce less targeted vectors. These work better for **technical documentation** where a code example might not make sense without the explanation above it, or where a concept spans several paragraphs. If you're indexing API docs and someone asks how to authenticate, you probably want the chunk to include the explanation, the code snippet, *and* the common error cases — not just the code block alone.
+
+The key insight is that **your chunk boundaries should align with the natural units of meaning in your content.** For FAQs, a chunk is a question-answer pair. For documentation, a chunk might be an entire subsection including its code examples. For legal documents, a chunk might be a single clause. Don't just pick a number and split blindly — think about what a useful retrieval result looks like for your specific use case, and chunk accordingly.
+
+### Overlap
+
+**Overlap** means that consecutive chunks share some text at their boundaries — typically 10–20% of the chunk size. This is critical because without it, important information that happens to fall at a chunk boundary gets split across two vectors and may not be retrieved by either one.
+
+```
+Without overlap:
+┌─── Chunk 1 ──────────┐┌─── Chunk 2 ──────────┐
+│ The API uses bearer   ││ must be refreshed     │
+│ tokens for auth.      ││ every 30 minutes.     │
+│ Tokens ↵              ││ Use the /refresh...   │
+└───────────────────────┘└───────────────────────┘
+     ↑ "Tokens must be refreshed every 30 minutes" is split
+
+With overlap:
+┌─── Chunk 1 ────────────────┐
+│ The API uses bearer         │
+│ tokens for auth.            │
+│ Tokens must be refreshed    │
+│ every 30 minutes.           │
+└──────────┬──────────────────┘
+           │  overlap
+┌──────────┴──────────────────┐
+│ Tokens must be refreshed    │
+│ every 30 minutes.           │
+│ Use the /refresh endpoint   │
+│ to obtain a new token...    │
+└─────────────────────────────┘
+     ↑ Both chunks contain the full sentence
+```
+
+This matters more for narrative content — documentation, reports, articles — where ideas flow across paragraphs. For content with clear boundaries like FAQs, overlap is less important because each chunk is already self-contained.
+
+### Putting it together
+
+In practice, **recursive character splitting with overlap** is a good starting point:
 
 ```python
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 splitter = RecursiveCharacterTextSplitter(
-    chunk_size=512,
-    chunk_overlap=64,
+    chunk_size=512,       # ~1-2 paragraphs
+    chunk_overlap=64,     # ~12% overlap
     separators=["\n\n", "\n", ". ", " ", ""],
 )
 
@@ -64,7 +120,7 @@ chunk_records = [
 ]
 ```
 
-The **overlap** is important — it ensures that information at chunk boundaries isn't lost. If a key fact spans two chunks, the overlap means at least one of them will contain the full context.
+But treat this as a starting point, not a final answer. Swap in larger chunks for documentation, smaller ones for FAQs, and always test retrieval quality with real queries before committing to a chunk size.
 
 **Preserve metadata.** Every chunk should carry a reference back to its source document, its position, and any relevant tags. You'll need this for citation, filtering, and debugging retrieval issues later.
 
@@ -74,7 +130,139 @@ The **overlap** is important — it ensures that information at chunk boundaries
 
 Once you have embeddings, you need somewhere to store them and a way to search them efficiently. That's what a **vector store** does — it indexes your embeddings and supports similarity search, returning the vectors closest to a given query vector.
 
-The similarity metric matters. **Cosine similarity** measures the angle between vectors and is the most common choice — it works well when vectors are normalised. **Dot product** is faster but sensitive to vector magnitude. **Euclidean distance** measures straight-line distance and works fine for most cases but is less common in practice.
+Here's what a row in a vector store actually looks like — it's just your text, some metadata, and that big array of floats sitting alongside it:
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│  id:        "chunk_042"                                              │
+│  content:   "To authenticate, include a Bearer token in the         │
+│              Authorization header. Tokens expire after 30 minutes."  │
+│  source:    "api-docs/authentication.md"                             │
+│  embedding: [0.0231, -0.0892, 0.1345, 0.0012, -0.0567, ...]        │
+│              \_______________ 1,536 floats ________________/         │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+When a user asks a question, their query gets embedded into the same vector space, and the store finds the rows whose embedding vectors are closest to the query vector.
+
+### How vector search works
+
+Under the hood, a vector store needs to solve a specific problem: given a query vector, find the K most similar vectors out of potentially millions of stored embeddings. A brute-force comparison against every row would be accurate but far too slow at scale.
+
+Most vector stores use **approximate nearest neighbour (ANN)** algorithms to make this tractable. The two most common are:
+
+- **HNSW (Hierarchical Navigable Small World)** — builds a multi-layered graph where each node is a vector connected to its nearest neighbours. Search starts at the top layer (sparse, long-range connections) and drills down to the bottom layer (dense, precise connections). This is what pgvector, Pinecone, and most others use by default. It's fast and accurate, but uses more memory because it stores the full graph in RAM.
+
+- **IVF (Inverted File Index)** — partitions vectors into clusters using k-means, then at query time only searches the clusters closest to the query vector. Faster to build and uses less memory than HNSW, but slightly less accurate because it might miss relevant vectors in neighbouring clusters.
+
+You don't usually need to choose between these directly — your vector store picks a sensible default. But it helps to know the trade-off exists: **speed and memory vs accuracy.** If your retrieval results seem to be missing documents you know should match, check whether the index is configured too aggressively for speed.
+
+### Distance metrics
+
+When the store compares two vectors, it needs a way to measure "closeness." There are three common metrics, each with different properties.
+
+**Cosine similarity** measures the angle between two vectors, ignoring their magnitude. Two vectors pointing in the same direction have a cosine similarity of 1, perpendicular vectors score 0, and opposite vectors score -1.
+
+```
+  cosine_similarity(A, B) = (A · B) / (‖A‖ × ‖B‖)
+
+  where A · B is the dot product and ‖A‖ is the vector's magnitude
+```
+
+Here's the intuition. Imagine squashing 1,536 dimensions down to just 2:
+
+```
+         High similarity (0.95)           Low similarity (0.15)
+
+         "reset my password"              "reset my password"
+             ↗  ↗                             ↗
+            /  /                             /
+           / / ← small angle               / ← large angle
+          / /                              /
+         //                               /____________→
+        /                                 "quarterly revenue report"
+       "change my login
+        credentials"
+
+   Same direction = same meaning.     Different directions = different topics.
+```
+
+Cosine similarity is the default for most embedding models because it normalises for vector length — a short chunk and a long chunk about the same topic will still score high.
+
+**Dot product** is the numerator of cosine similarity without the normalisation:
+
+```
+  dot_product(A, B) = A · B = Σ(aᵢ × bᵢ)
+
+  ┌─────────────────────────────────────────────────────┐
+  │ A = [0.5, 0.3]    B = [0.4, 0.6]                   │
+  │                                                     │
+  │ dot = (0.5 × 0.4) + (0.3 × 0.6) = 0.20 + 0.18     │
+  │     = 0.38                                          │
+  └─────────────────────────────────────────────────────┘
+```
+
+It's faster to compute because it skips the magnitude calculation. But it's sensitive to vector length — a longer vector will score higher just because it's longer, not because it's more similar. This works fine when your embedding model produces normalised vectors (many do), but can give misleading results if they're not normalised.
+
+**Euclidean distance** measures the straight-line distance between two points in the vector space:
+
+```
+  euclidean(A, B) = √(Σ(aᵢ - bᵢ)²)
+
+         B (0.4, 0.6)
+         •
+        /|
+       / |
+  d   /  | Δy = 0.3
+     /   |
+    /    |
+   •─────
+   A (0.5, 0.3)
+     Δx = 0.1
+
+   d = √(0.1² + 0.3²) = √0.10 ≈ 0.316
+```
+
+Lower distance means more similar. It works well in many cases but is sensitive to magnitude — two vectors about the same topic but with different scales will appear further apart than they should.
+
+> **Which one to use?** Start with **cosine similarity.** It's the most forgiving and the default for most embedding models. Only switch to dot product if you've confirmed your embeddings are normalised and you need the speed. Use Euclidean distance only if your specific model recommends it.
+
+In practice, most retrieval results with a cosine similarity above **0.8** are strong matches. Between **0.5 and 0.8** is "maybe relevant." Below **0.5** is usually noise. These thresholds vary by model and domain, but they're a reasonable starting heuristic.
+
+### Multi-tenancy
+
+If your application serves multiple users or organisations, you need to make sure that user A's documents never appear in user B's search results. This is **multi-tenancy** for vector stores, and there are a few approaches depending on your scale.
+
+**Metadata filtering** is the simplest. Store a `tenant_id` field alongside each embedding and filter on it at query time:
+
+```typescript
+// At storage time — tag every chunk with its owner
+await pool.query(
+  `INSERT INTO documents (content, tenant_id, embedding)
+   VALUES ($1, $2, $3)`,
+  [chunk.text, tenantId, JSON.stringify(embedding)]
+);
+
+// At query time — only search this tenant's documents
+const result = await pool.query(
+  `SELECT content, 1 - (embedding <=> $1) AS similarity
+   FROM documents
+   WHERE tenant_id = $2
+   ORDER BY embedding <=> $1
+   LIMIT $3`,
+  [JSON.stringify(queryEmbedding), tenantId, topK]
+);
+```
+
+This works well for small to medium scale. The vector search happens across all rows and the `WHERE` clause filters the results. With pgvector you can add a composite index on `(tenant_id, embedding)` to make this efficient.
+
+**Namespace separation** is offered by managed services like Pinecone. Each tenant gets their own namespace within the same index — the search is scoped to that namespace from the start, so there's no risk of cross-tenant leakage and the search is faster because it only scans one partition.
+
+**Separate indexes/tables** is the most isolated approach — one vector index per tenant. This gives you hard data separation and independent scaling, but adds operational complexity. It makes sense when you have a small number of large tenants (think enterprise customers with millions of documents each) rather than thousands of small ones.
+
+For most applications, **metadata filtering with a tenant ID** is the right starting point. It's simple, it works with any vector store, and you can upgrade to namespace separation later if query performance becomes an issue.
+
+### Choosing a vector store
 
 For the store itself, the options range from lightweight to fully managed. **pgvector** extends PostgreSQL with vector search — if you're already running Postgres, this is the lowest-friction option. **ChromaDB** is good for local development and prototyping. **Pinecone** is a managed service that handles scaling for you. For small datasets, even **SQLite with extensions** can work.
 
@@ -169,7 +357,7 @@ This is the basic pipeline. In production you'd add **metadata filtering** (only
 
 ## What Actually Matters
 
-After building several of these systems, here's where I've learned the leverage actually is:
+Here's where the leverage actually is:
 
 **Chunk size tuning matters more than vector database choice.** I've seen retrieval quality swing dramatically just by changing chunk size from 1,000 tokens to 500. The "right" size depends on your content — short factual documents want smaller chunks, longer narrative documents want larger ones. Test this empirically, not theoretically.
 
