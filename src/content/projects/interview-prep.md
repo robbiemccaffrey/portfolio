@@ -1,9 +1,9 @@
 ---
-title: "SWE Interview Prep"
-description: "An interactive study tool for technical interview preparation. Covers data structures, algorithms, and system design with a clean UI for browsing topics and tracking progress."
+title: "Coding Interview Guide"
+description: "Free coding interview preparation — learn data structures, algorithms, and practice 24+ problems with in-browser Python execution. No signup required."
 tech: ["React", "TypeScript", "Vite"]
-githubUrl: "https://github.com/robbiemccaffrey/interview-prep-app"
-liveUrl: "https://interview.robertmccaffrey.ie"
+githubUrl: "https://github.com/robbiemccaffrey/codinginterviewguide"
+liveUrl: "https://codinginterviewguide.com"
 featured: true
 order: 4
 ---
