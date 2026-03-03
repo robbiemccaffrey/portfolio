@@ -18,77 +18,77 @@ Here's the full flow at a glance:
   <div class="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
     <div class="px-5 py-2.5 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 font-sans text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">How RAG works</div>
     <div class="px-4 py-6 sm:px-8 sm:py-8">
-      <svg viewBox="0 0 720 370" class="w-full" aria-label="Diagram showing how RAG works: a user question is embedded and used to search a vector store, the matching documents are combined with the original question and sent to an LLM, which produces a grounded answer.">
+      <svg viewBox="0 0 720 310" class="w-full" aria-label="Diagram showing how RAG works: a user question is embedded and used to search a vector store, the matching documents are combined with the original question and sent to an LLM, which produces a grounded answer.">
         {/* ---- Step 1: User question ---- */}
-        <rect x="10" y="140" width="140" height="60" rx="10" class="fill-blue-50 dark:fill-blue-900/30 stroke-blue-300 dark:stroke-blue-700" stroke-width="1.5"/>
-        <text x="80" y="166" text-anchor="middle" class="fill-blue-700 dark:fill-blue-300" font-size="11" font-family="system-ui" font-weight="600">User question</text>
-        <text x="80" y="182" text-anchor="middle" class="fill-blue-500 dark:fill-blue-400" font-size="9" font-family="system-ui" font-style="italic">"How do I reset my</text>
-        <text x="80" y="193" text-anchor="middle" class="fill-blue-500 dark:fill-blue-400" font-size="9" font-family="system-ui" font-style="italic">password?"</text>
-        <text x="80" y="128" text-anchor="middle" class="fill-gray-400 dark:fill-gray-500" font-size="10" font-family="system-ui" font-weight="700">1</text>
+        <rect x="10" y="80" width="140" height="60" rx="10" class="fill-blue-50 dark:fill-blue-900/30 stroke-blue-300 dark:stroke-blue-700" stroke-width="1.5"/>
+        <text x="80" y="106" text-anchor="middle" class="fill-blue-700 dark:fill-blue-300" font-size="11" font-family="system-ui" font-weight="600">User question</text>
+        <text x="80" y="122" text-anchor="middle" class="fill-blue-500 dark:fill-blue-400" font-size="9" font-family="system-ui" font-style="italic">"How do I reset my</text>
+        <text x="80" y="133" text-anchor="middle" class="fill-blue-500 dark:fill-blue-400" font-size="9" font-family="system-ui" font-style="italic">password?"</text>
+        <text x="80" y="68" text-anchor="middle" class="fill-gray-400 dark:fill-gray-500" font-size="10" font-family="system-ui" font-weight="700">1</text>
         {/* Arrow from question to vector store */}
         <defs>
           <marker id="rag-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" class="fill-gray-400 dark:fill-gray-500"/></marker>
         </defs>
-        <line x1="150" y1="165" x2="198" y2="165" class="stroke-gray-300 dark:stroke-gray-600" stroke-width="1.5" marker-end="url(#rag-arrow)"/>
-        <text x="174" y="158" text-anchor="middle" class="fill-gray-400 dark:fill-gray-500" font-size="8" font-family="system-ui">embed</text>
+        <line x1="150" y1="105" x2="198" y2="105" class="stroke-gray-300 dark:stroke-gray-600" stroke-width="1.5" marker-end="url(#rag-arrow)"/>
+        <text x="174" y="98" text-anchor="middle" class="fill-gray-400 dark:fill-gray-500" font-size="8" font-family="system-ui">embed</text>
         {/* ---- Step 2: Vector store ---- */}
-        <rect x="205" y="100" width="160" height="140" rx="10" class="fill-amber-50 dark:fill-amber-900/20 stroke-amber-300 dark:stroke-amber-700" stroke-width="1.5"/>
-        <text x="285" y="125" text-anchor="middle" class="fill-amber-700 dark:fill-amber-300" font-size="11" font-family="system-ui" font-weight="600">Vector Store</text>
+        <rect x="205" y="40" width="160" height="140" rx="10" class="fill-amber-50 dark:fill-amber-900/20 stroke-amber-300 dark:stroke-amber-700" stroke-width="1.5"/>
+        <text x="285" y="65" text-anchor="middle" class="fill-amber-700 dark:fill-amber-300" font-size="11" font-family="system-ui" font-weight="600">Vector Store</text>
         {/* Mini document rows */}
-        <rect x="220" y="137" width="130" height="22" rx="4" class="fill-emerald-100 dark:fill-emerald-900/30 stroke-emerald-300 dark:stroke-emerald-600" stroke-width="1"/>
-        <text x="228" y="152" class="fill-emerald-700 dark:fill-emerald-300" font-size="8" font-family="system-ui">password-reset.md</text>
-        <text x="340" y="152" text-anchor="end" class="fill-emerald-500 dark:fill-emerald-400" font-size="7" font-family="monospace">0.94</text>
-        <rect x="220" y="163" width="130" height="22" rx="4" class="fill-emerald-50 dark:fill-emerald-900/15 stroke-emerald-200 dark:stroke-emerald-700" stroke-width="1"/>
-        <text x="228" y="178" class="fill-emerald-600 dark:fill-emerald-400" font-size="8" font-family="system-ui">account-security.md</text>
-        <text x="340" y="178" text-anchor="end" class="fill-emerald-500 dark:fill-emerald-400" font-size="7" font-family="monospace">0.82</text>
-        <rect x="220" y="189" width="130" height="22" rx="4" class="fill-gray-50 dark:fill-gray-800/40 stroke-gray-200 dark:stroke-gray-700" stroke-width="1"/>
-        <text x="228" y="204" class="fill-gray-400 dark:fill-gray-500" font-size="8" font-family="system-ui">billing-faq.md</text>
-        <text x="340" y="204" text-anchor="end" class="fill-gray-400 dark:fill-gray-500" font-size="7" font-family="monospace">0.31</text>
-        <text x="285" y="228" text-anchor="middle" class="fill-gray-400 dark:fill-gray-500" font-size="8" font-family="system-ui" font-style="italic">similarity search</text>
-        <text x="285" y="88" text-anchor="middle" class="fill-gray-400 dark:fill-gray-500" font-size="10" font-family="system-ui" font-weight="700">2</text>
+        <rect x="220" y="77" width="130" height="22" rx="4" class="fill-emerald-100 dark:fill-emerald-900/30 stroke-emerald-300 dark:stroke-emerald-600" stroke-width="1"/>
+        <text x="228" y="92" class="fill-emerald-700 dark:fill-emerald-300" font-size="8" font-family="system-ui">password-reset.md</text>
+        <text x="340" y="92" text-anchor="end" class="fill-emerald-500 dark:fill-emerald-400" font-size="7" font-family="monospace">0.94</text>
+        <rect x="220" y="103" width="130" height="22" rx="4" class="fill-emerald-50 dark:fill-emerald-900/15 stroke-emerald-200 dark:stroke-emerald-700" stroke-width="1"/>
+        <text x="228" y="118" class="fill-emerald-600 dark:fill-emerald-400" font-size="8" font-family="system-ui">account-security.md</text>
+        <text x="340" y="118" text-anchor="end" class="fill-emerald-500 dark:fill-emerald-400" font-size="7" font-family="monospace">0.82</text>
+        <rect x="220" y="129" width="130" height="22" rx="4" class="fill-gray-50 dark:fill-gray-800/40 stroke-gray-200 dark:stroke-gray-700" stroke-width="1"/>
+        <text x="228" y="144" class="fill-gray-400 dark:fill-gray-500" font-size="8" font-family="system-ui">billing-faq.md</text>
+        <text x="340" y="144" text-anchor="end" class="fill-gray-400 dark:fill-gray-500" font-size="7" font-family="monospace">0.31</text>
+        <text x="285" y="168" text-anchor="middle" class="fill-gray-400 dark:fill-gray-500" font-size="8" font-family="system-ui" font-style="italic">similarity search</text>
+        <text x="285" y="28" text-anchor="middle" class="fill-gray-400 dark:fill-gray-500" font-size="10" font-family="system-ui" font-weight="700">2</text>
         {/* Arrow from vector store to prompt assembly */}
-        <line x1="365" y1="155" x2="413" y2="155" class="stroke-gray-300 dark:stroke-gray-600" stroke-width="1.5" marker-end="url(#rag-arrow)"/>
-        <text x="389" y="148" text-anchor="middle" class="fill-gray-400 dark:fill-gray-500" font-size="8" font-family="system-ui">top K</text>
+        <line x1="365" y1="95" x2="413" y2="95" class="stroke-gray-300 dark:stroke-gray-600" stroke-width="1.5" marker-end="url(#rag-arrow)"/>
+        <text x="389" y="88" text-anchor="middle" class="fill-gray-400 dark:fill-gray-500" font-size="8" font-family="system-ui">top K</text>
         {/* ---- Step 3: Prompt assembly ---- */}
-        <rect x="420" y="80" width="140" height="180" rx="10" class="fill-violet-50 dark:fill-violet-900/20 stroke-violet-300 dark:stroke-violet-700" stroke-width="1.5"/>
-        <text x="490" y="105" text-anchor="middle" class="fill-violet-700 dark:fill-violet-300" font-size="11" font-family="system-ui" font-weight="600">Prompt</text>
+        <rect x="420" y="20" width="140" height="180" rx="10" class="fill-violet-50 dark:fill-violet-900/20 stroke-violet-300 dark:stroke-violet-700" stroke-width="1.5"/>
+        <text x="490" y="45" text-anchor="middle" class="fill-violet-700 dark:fill-violet-300" font-size="11" font-family="system-ui" font-weight="600">Prompt</text>
         {/* Context block */}
-        <rect x="434" y="115" width="112" height="52" rx="4" class="fill-emerald-50 dark:fill-emerald-900/20 stroke-emerald-200 dark:stroke-emerald-700" stroke-width="1" stroke-dasharray="4 2"/>
-        <text x="440" y="128" class="fill-emerald-600 dark:fill-emerald-400" font-size="8" font-family="system-ui" font-weight="600">Context:</text>
-        <text x="440" y="140" class="fill-gray-500 dark:fill-gray-400" font-size="7.5" font-family="system-ui">To reset your password,</text>
-        <text x="440" y="150" class="fill-gray-500 dark:fill-gray-400" font-size="7.5" font-family="system-ui">go to Settings → Security</text>
-        <text x="440" y="160" class="fill-gray-500 dark:fill-gray-400" font-size="7.5" font-family="system-ui">→ Change password…</text>
+        <rect x="434" y="55" width="112" height="52" rx="4" class="fill-emerald-50 dark:fill-emerald-900/20 stroke-emerald-200 dark:stroke-emerald-700" stroke-width="1" stroke-dasharray="4 2"/>
+        <text x="440" y="68" class="fill-emerald-600 dark:fill-emerald-400" font-size="8" font-family="system-ui" font-weight="600">Context:</text>
+        <text x="440" y="80" class="fill-gray-500 dark:fill-gray-400" font-size="7.5" font-family="system-ui">To reset your password,</text>
+        <text x="440" y="90" class="fill-gray-500 dark:fill-gray-400" font-size="7.5" font-family="system-ui">go to Settings → Security</text>
+        <text x="440" y="100" class="fill-gray-500 dark:fill-gray-400" font-size="7.5" font-family="system-ui">→ Change password…</text>
         {/* Question block */}
-        <rect x="434" y="173" width="112" height="36" rx="4" class="fill-blue-50 dark:fill-blue-900/20 stroke-blue-200 dark:stroke-blue-700" stroke-width="1" stroke-dasharray="4 2"/>
-        <text x="440" y="186" class="fill-blue-600 dark:fill-blue-400" font-size="8" font-family="system-ui" font-weight="600">Question:</text>
-        <text x="440" y="198" class="fill-gray-500 dark:fill-gray-400" font-size="7.5" font-family="system-ui">How do I reset my password?</text>
+        <rect x="434" y="113" width="112" height="36" rx="4" class="fill-blue-50 dark:fill-blue-900/20 stroke-blue-200 dark:stroke-blue-700" stroke-width="1" stroke-dasharray="4 2"/>
+        <text x="440" y="126" class="fill-blue-600 dark:fill-blue-400" font-size="8" font-family="system-ui" font-weight="600">Question:</text>
+        <text x="440" y="138" class="fill-gray-500 dark:fill-gray-400" font-size="7.5" font-family="system-ui">How do I reset my password?</text>
         {/* System instruction */}
-        <text x="490" y="227" text-anchor="middle" class="fill-violet-400 dark:fill-violet-500" font-size="7" font-family="system-ui" font-style="italic">"Answer using only the</text>
-        <text x="490" y="237" text-anchor="middle" class="fill-violet-400 dark:fill-violet-500" font-size="7" font-family="system-ui" font-style="italic">provided context."</text>
-        <text x="490" y="68" text-anchor="middle" class="fill-gray-400 dark:fill-gray-500" font-size="10" font-family="system-ui" font-weight="700">3</text>
+        <text x="490" y="167" text-anchor="middle" class="fill-violet-400 dark:fill-violet-500" font-size="7" font-family="system-ui" font-style="italic">"Answer using only the</text>
+        <text x="490" y="177" text-anchor="middle" class="fill-violet-400 dark:fill-violet-500" font-size="7" font-family="system-ui" font-style="italic">provided context."</text>
+        <text x="490" y="8" text-anchor="middle" class="fill-gray-400 dark:fill-gray-500" font-size="10" font-family="system-ui" font-weight="700">3</text>
         {/* Arrow from prompt to LLM */}
-        <line x1="560" y1="170" x2="598" y2="170" class="stroke-gray-300 dark:stroke-gray-600" stroke-width="1.5" marker-end="url(#rag-arrow)"/>
+        <line x1="560" y1="110" x2="598" y2="110" class="stroke-gray-300 dark:stroke-gray-600" stroke-width="1.5" marker-end="url(#rag-arrow)"/>
         {/* ---- Step 4: LLM ---- */}
-        <rect x="605" y="130" width="100" height="80" rx="10" class="fill-gray-100 dark:fill-gray-800 stroke-gray-300 dark:stroke-gray-600" stroke-width="1.5"/>
-        <text x="655" y="162" text-anchor="middle" class="fill-gray-700 dark:fill-gray-200" font-size="13" font-family="system-ui" font-weight="700">LLM</text>
-        <text x="655" y="178" text-anchor="middle" class="fill-gray-400 dark:fill-gray-500" font-size="8" font-family="system-ui">generates answer</text>
-        <text x="655" y="118" text-anchor="middle" class="fill-gray-400 dark:fill-gray-500" font-size="10" font-family="system-ui" font-weight="700">4</text>
+        <rect x="605" y="70" width="100" height="80" rx="10" class="fill-gray-100 dark:fill-gray-800 stroke-gray-300 dark:stroke-gray-600" stroke-width="1.5"/>
+        <text x="655" y="102" text-anchor="middle" class="fill-gray-700 dark:fill-gray-200" font-size="13" font-family="system-ui" font-weight="700">LLM</text>
+        <text x="655" y="118" text-anchor="middle" class="fill-gray-400 dark:fill-gray-500" font-size="8" font-family="system-ui">generates answer</text>
+        <text x="655" y="58" text-anchor="middle" class="fill-gray-400 dark:fill-gray-500" font-size="10" font-family="system-ui" font-weight="700">4</text>
         {/* ---- Step 5: Grounded answer ---- */}
-        <line x1="655" y1="210" x2="655" y2="248" class="stroke-gray-300 dark:stroke-gray-600" stroke-width="1.5" marker-end="url(#rag-arrow)"/>
-        <rect x="580" y="255" width="150" height="66" rx="10" class="fill-emerald-50 dark:fill-emerald-900/20 stroke-emerald-300 dark:stroke-emerald-600" stroke-width="1.5"/>
-        <text x="655" y="278" text-anchor="middle" class="fill-emerald-700 dark:fill-emerald-300" font-size="10" font-family="system-ui" font-weight="600">Grounded answer</text>
-        <text x="655" y="294" text-anchor="middle" class="fill-gray-500 dark:fill-gray-400" font-size="8" font-family="system-ui">"Go to Settings → Security</text>
-        <text x="655" y="305" text-anchor="middle" class="fill-gray-500 dark:fill-gray-400" font-size="8" font-family="system-ui">→ Change password."</text>
-        <text x="655" y="248" text-anchor="middle" class="fill-gray-400 dark:fill-gray-500" font-size="10" font-family="system-ui" font-weight="700">5</text>
+        <line x1="655" y1="150" x2="655" y2="188" class="stroke-gray-300 dark:stroke-gray-600" stroke-width="1.5" marker-end="url(#rag-arrow)"/>
+        <rect x="580" y="195" width="150" height="66" rx="10" class="fill-emerald-50 dark:fill-emerald-900/20 stroke-emerald-300 dark:stroke-emerald-600" stroke-width="1.5"/>
+        <text x="655" y="218" text-anchor="middle" class="fill-emerald-700 dark:fill-emerald-300" font-size="10" font-family="system-ui" font-weight="600">Grounded answer</text>
+        <text x="655" y="234" text-anchor="middle" class="fill-gray-500 dark:fill-gray-400" font-size="8" font-family="system-ui">"Go to Settings → Security</text>
+        <text x="655" y="245" text-anchor="middle" class="fill-gray-500 dark:fill-gray-400" font-size="8" font-family="system-ui">→ Change password."</text>
+        <text x="655" y="188" text-anchor="middle" class="fill-gray-400 dark:fill-gray-500" font-size="10" font-family="system-ui" font-weight="700">5</text>
         {/* ---- Step labels along the bottom ---- */}
-        <text x="80" y="360" text-anchor="middle" class="fill-gray-400 dark:fill-gray-500" font-size="8" font-family="system-ui">User asks</text>
-        <text x="285" y="360" text-anchor="middle" class="fill-gray-400 dark:fill-gray-500" font-size="8" font-family="system-ui">Find similar docs</text>
-        <text x="490" y="360" text-anchor="middle" class="fill-gray-400 dark:fill-gray-500" font-size="8" font-family="system-ui">Build prompt</text>
-        <text x="655" y="360" text-anchor="middle" class="fill-gray-400 dark:fill-gray-500" font-size="8" font-family="system-ui">Answer with citations</text>
-        <text x="80" y="348" text-anchor="middle" class="fill-blue-500 dark:fill-blue-400" font-size="9" font-family="system-ui" font-weight="700">①</text>
-        <text x="285" y="348" text-anchor="middle" class="fill-amber-500 dark:fill-amber-400" font-size="9" font-family="system-ui" font-weight="700">②</text>
-        <text x="490" y="348" text-anchor="middle" class="fill-violet-500 dark:fill-violet-400" font-size="9" font-family="system-ui" font-weight="700">③④</text>
-        <text x="655" y="348" text-anchor="middle" class="fill-emerald-500 dark:fill-emerald-400" font-size="9" font-family="system-ui" font-weight="700">⑤</text>
+        <text x="80" y="300" text-anchor="middle" class="fill-gray-400 dark:fill-gray-500" font-size="8" font-family="system-ui">User asks</text>
+        <text x="285" y="300" text-anchor="middle" class="fill-gray-400 dark:fill-gray-500" font-size="8" font-family="system-ui">Find similar docs</text>
+        <text x="490" y="300" text-anchor="middle" class="fill-gray-400 dark:fill-gray-500" font-size="8" font-family="system-ui">Build prompt</text>
+        <text x="655" y="300" text-anchor="middle" class="fill-gray-400 dark:fill-gray-500" font-size="8" font-family="system-ui">Answer with citations</text>
+        <text x="80" y="288" text-anchor="middle" class="fill-blue-500 dark:fill-blue-400" font-size="9" font-family="system-ui" font-weight="700">①</text>
+        <text x="285" y="288" text-anchor="middle" class="fill-amber-500 dark:fill-amber-400" font-size="9" font-family="system-ui" font-weight="700">②</text>
+        <text x="490" y="288" text-anchor="middle" class="fill-violet-500 dark:fill-violet-400" font-size="9" font-family="system-ui" font-weight="700">③④</text>
+        <text x="655" y="288" text-anchor="middle" class="fill-emerald-500 dark:fill-emerald-400" font-size="9" font-family="system-ui" font-weight="700">⑤</text>
       </svg>
     </div>
   </div>
