@@ -1,0 +1,194 @@
+---
+title: "Building RAG From Scratch: What I Learned"
+date: 2026-03-05
+description: "A practical guide to building retrieval-augmented generation — embeddings, chunking, vector stores, and the retrieval pipeline that ties it all together."
+tags: ["ai", "rag", "agents", "llm"]
+draft: true
+---
+
+## Why RAG
+
+Large language models are impressive, but they have two fundamental problems when you try to use them on your own data. First, they have a **knowledge cutoff** — they don't know about anything that happened after their training data was collected. Second, they have **context limits** — even with long-context models, you can't just dump your entire knowledge base into a prompt and hope for the best.
+
+**Retrieval-augmented generation (RAG)** solves both of these. Instead of relying on what the model already knows, you retrieve relevant documents at query time and inject them into the prompt as context. The model then generates a response grounded in your actual data rather than its training set. It's not a new idea — it's essentially a search engine feeding results to an LLM — but the execution details matter enormously.
+
+I've built several RAG systems now, from simple prototypes to production pipelines. This is what I wish someone had told me at the start.
+
+---
+
+## Embeddings
+
+Before you can retrieve anything, you need a way to represent text as something a computer can compare. That's what **embeddings** are — numerical vectors that capture the semantic meaning of a piece of text. Two sentences that mean similar things will have vectors that are close together in high-dimensional space, even if they use completely different words.
+
+You generate embeddings by passing text through an embedding model. The output is a fixed-length array of floats — typically 256 to 3,072 dimensions depending on the model.
+
+The model you choose matters. **OpenAI's `text-embedding-3-small`** is a solid default — it's cheap, fast, and performs well on most retrieval benchmarks. If you need better accuracy and don't mind the cost, `text-embedding-3-large` is worth testing. On the open-source side, models from the **Sentence Transformers** family (like `all-MiniLM-L6-v2`) are free and run locally, which matters if you have data residency constraints.
+
+> **One important thing:** once you pick an embedding model, you're committed to it. Your queries and your stored documents need to use the same model. Switching later means re-embedding your entire corpus.
+
+---
+
+## Chunking
+
+You can't just embed an entire 50-page document as a single vector. The embedding would be too diluted — it'd capture the general theme but lose the specific details you actually need to retrieve. So you **chunk** your documents into smaller pieces before embedding them.
+
+This sounds simple. It isn't. Chunking strategy has a bigger impact on retrieval quality than almost any other decision you'll make.
+
+**Fixed-size chunking** is the simplest approach — split every N characters or tokens. It's fast and predictable, but it splits mid-sentence and ignores document structure. You'll get chunks that start halfway through a paragraph and end in the middle of a code block.
+
+**Recursive character splitting** is a better default. It tries to split on paragraph boundaries first, then sentences, then words, only falling back to character-level splits when necessary. It respects the natural structure of text.
+
+**Semantic chunking** groups text by meaning — it embeds individual sentences and creates chunk boundaries where the embedding similarity drops. It's more expensive to compute but produces chunks that are semantically coherent.
+
+In practice, **recursive character splitting with overlap** is where I start every project. Something like this:
+
+```python
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+
+splitter = RecursiveCharacterTextSplitter(
+    chunk_size=512,
+    chunk_overlap=64,
+    separators=["\n\n", "\n", ". ", " ", ""],
+)
+
+chunks = splitter.split_text(document_text)
+
+# Preserve source metadata on each chunk
+chunk_records = [
+    {
+        "text": chunk,
+        "source": document_id,
+        "chunk_index": i,
+    }
+    for i, chunk in enumerate(chunks)
+]
+```
+
+The **overlap** is important — it ensures that information at chunk boundaries isn't lost. If a key fact spans two chunks, the overlap means at least one of them will contain the full context.
+
+**Preserve metadata.** Every chunk should carry a reference back to its source document, its position, and any relevant tags. You'll need this for citation, filtering, and debugging retrieval issues later.
+
+---
+
+## Vector Stores
+
+Once you have embeddings, you need somewhere to store them and a way to search them efficiently. That's what a **vector store** does — it indexes your embeddings and supports similarity search, returning the vectors closest to a given query vector.
+
+The similarity metric matters. **Cosine similarity** measures the angle between vectors and is the most common choice — it works well when vectors are normalised. **Dot product** is faster but sensitive to vector magnitude. **Euclidean distance** measures straight-line distance and works fine for most cases but is less common in practice.
+
+For the store itself, the options range from lightweight to fully managed. **pgvector** extends PostgreSQL with vector search — if you're already running Postgres, this is the lowest-friction option. **ChromaDB** is good for local development and prototyping. **Pinecone** is a managed service that handles scaling for you. For small datasets, even **SQLite with extensions** can work.
+
+My advice: **don't overthink the vector store choice early on.** The retrieval quality comes from your chunking and embedding strategy, not from which database you use. Start with whatever's easiest to integrate.
+
+Here's a minimal example storing and querying embeddings with pgvector:
+
+```typescript
+import { Pool } from "pg";
+import { embed } from "./embeddings";
+
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+async function storeChunks(chunks: { text: string; source: string }[]) {
+  for (const chunk of chunks) {
+    const embedding = await embed(chunk.text);
+    await pool.query(
+      `INSERT INTO documents (content, source, embedding)
+       VALUES ($1, $2, $3)`,
+      [chunk.text, chunk.source, JSON.stringify(embedding)]
+    );
+  }
+}
+
+async function search(query: string, topK = 5) {
+  const queryEmbedding = await embed(query);
+  const result = await pool.query(
+    `SELECT content, source, 1 - (embedding <=> $1) AS similarity
+     FROM documents
+     ORDER BY embedding <=> $1
+     LIMIT $2`,
+    [JSON.stringify(queryEmbedding), topK]
+  );
+  return result.rows;
+}
+```
+
+The `<=>` operator is pgvector's cosine distance. Lower distance means higher similarity — that's why we sort ascending and compute `1 - distance` to get a similarity score.
+
+---
+
+## The Retrieval Pipeline
+
+With embeddings, chunks, and a vector store in place, the retrieval pipeline is the thing that ties it all together. The flow is: **query → embed → search → rank → inject into prompt**.
+
+```python
+import openai
+
+def retrieve_and_generate(query: str, top_k: int = 5) -> str:
+    # 1. Embed the user's query
+    query_embedding = openai.embeddings.create(
+        model="text-embedding-3-small",
+        input=query,
+    ).data[0].embedding
+
+    # 2. Search the vector store
+    results = vector_store.search(query_embedding, top_k=top_k)
+
+    # 3. Build context from retrieved chunks
+    context = "\n\n---\n\n".join(
+        f"[Source: {r['source']}]\n{r['content']}"
+        for r in results
+    )
+
+    # 4. Generate a grounded response
+    response = openai.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "Answer the user's question using only the provided context. "
+                    "If the context doesn't contain enough information, say so. "
+                    "Cite your sources."
+                ),
+            },
+            {
+                "role": "user",
+                "content": f"Context:\n{context}\n\nQuestion: {query}",
+            },
+        ],
+    )
+
+    return response.choices[0].message.content
+```
+
+A few things worth noting. The system prompt is doing important work — it tells the model to use only the provided context and to admit when it doesn't have enough information. Without these instructions, the model will happily hallucinate an answer that sounds plausible but isn't grounded in your data. The source citations in the context block give the model something to reference when it answers.
+
+This is the basic pipeline. In production you'd add **metadata filtering** (only search documents from a specific category or date range), **re-ranking** (use a cross-encoder to re-score the top results for better precision), and **hybrid search** (combine vector similarity with keyword matching for cases where exact terms matter).
+
+---
+
+## What Actually Matters
+
+After building several of these systems, here's where I've learned the leverage actually is:
+
+**Chunk size tuning matters more than vector database choice.** I've seen retrieval quality swing dramatically just by changing chunk size from 1,000 tokens to 500. The "right" size depends on your content — short factual documents want smaller chunks, longer narrative documents want larger ones. Test this empirically, not theoretically.
+
+**Metadata filtering is underrated.** Being able to filter by document type, date, or category before the vector search runs is extremely powerful. It reduces the search space and improves relevance significantly. Build this in from the start.
+
+**Re-ranking improves precision.** Vector search gives you recall — it finds documents that are roughly relevant. A cross-encoder re-ranker then scores each result against the actual query with much higher fidelity. It's an extra API call, but the precision improvement is worth it for most use cases.
+
+**Start simple.** Don't build a complex multi-stage retrieval system on day one. Start with basic chunking, a single embedding model, and cosine similarity search. Measure what's working and what isn't. Add complexity — re-ranking, hybrid search, query expansion — only when you've identified a specific retrieval failure that the simple approach can't handle.
+
+The biggest mistake I see is over-engineering the retrieval pipeline before understanding whether the problem is actually retrieval or something else entirely — like bad chunking, missing documents, or a poorly written system prompt.
+
+---
+
+## Questions?
+
+If you're building a RAG system and want to talk through your approach — chunking strategy, model choices, evaluation, or anything else — feel free to reach out. I'm happy to help where I can.
+
+You can find me at [rmccaffr@tcd.ie](mailto:rmccaffr@tcd.ie) or on [LinkedIn](https://linkedin.com/in/robbiemc8).
+
+---
+
+*This is part 1 of [AI Agent Architecture](/blog) — a practitioner's guide to building with LLMs. Next up: evaluating RAG systems.*

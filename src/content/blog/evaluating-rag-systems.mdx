@@ -1,0 +1,225 @@
+---
+title: "Evaluating RAG Systems: Testing What You Can't Unit Test"
+date: 2026-03-07
+description: "How to build evaluation systems for RAG — component-level testing, end-to-end evals, LLM-as-judge, scoring metrics, and keeping your test suite from going stale."
+tags: ["ai", "rag", "testing", "evaluation", "llm"]
+draft: true
+---
+
+## Why Evals Are Different
+
+The first time I built a RAG system and tried to write tests for it, I immediately hit a wall. Traditional software testing assumes deterministic behaviour — given input X, you expect output Y. With natural language generation, you might get a hundred different valid answers to the same question. The response might be factually correct but phrased differently every time. Or it might be subtly wrong in a way that requires domain knowledge to catch.
+
+You can't `assertEquals` your way out of this.
+
+That doesn't mean you can't test it — it means you need a different approach. **Evaluation for RAG systems is layered.** You test the retrieval component separately from the generation component. You build evaluation datasets that represent real queries. You use metrics that handle the inherent ambiguity of natural language. And in some cases, you use another LLM to judge the quality of outputs — because humans are too slow and regex is too brittle.
+
+I've learned to think of evals not as tests that pass or fail, but as a **quality signal that trends over time.** The goal isn't perfection — it's knowing when things get worse.
+
+---
+
+## Component-Level Testing
+
+The first thing to get right is testing retrieval and generation independently. If your system gives a bad answer, you need to know why — did it retrieve the wrong documents, or did it retrieve the right ones and then generate a bad response? If you only test end-to-end, you can't tell.
+
+**Retrieval metrics** are well-established and mostly deterministic. Given a query and a known set of relevant documents, you can measure:
+
+- **Recall@K** — of all the relevant documents, what fraction appeared in the top K results?
+- **Precision@K** — of the K results returned, what fraction were actually relevant?
+- **Mean Reciprocal Rank (MRR)** — how high did the first relevant result appear?
+
+Recall@K is the one I start with. If your retrieval isn't surfacing the right documents, nothing downstream can save you.
+
+```python
+def recall_at_k(
+    retrieved_ids: list[str],
+    relevant_ids: set[str],
+    k: int,
+) -> float:
+    """What fraction of relevant docs appeared in the top K results?"""
+    top_k = set(retrieved_ids[:k])
+    if not relevant_ids:
+        return 1.0  # No relevant docs expected — trivially correct
+    return len(top_k & relevant_ids) / len(relevant_ids)
+
+
+# Example: 3 relevant docs, retrieval returned 2 of them in top 5
+retrieved = ["doc_7", "doc_3", "doc_12", "doc_1", "doc_9"]
+relevant = {"doc_3", "doc_1", "doc_15"}
+
+score = recall_at_k(retrieved, relevant, k=5)
+# 2 / 3 = 0.667
+```
+
+To build this, you need a set of **evaluation queries with labelled relevant documents.** Start small — 20 to 30 queries covering your most important use cases. Label the relevant documents for each by hand. It's tedious work, but it's the foundation everything else builds on. Once you have this dataset, you can run it every time you change your chunking strategy, embedding model, or retrieval parameters, and immediately see whether things improved or regressed.
+
+---
+
+## End-to-End Evals
+
+Component tests tell you if retrieval is working. End-to-end evals tell you if the **whole system** — retrieval plus generation — produces useful answers.
+
+The structure of an eval case is straightforward: an input query, the expected answer (or acceptable answers), optionally the context that should be retrieved, and any metadata tags for slicing results later.
+
+```typescript
+interface EvalCase {
+  id: string;
+  query: string;
+  expectedAnswer: string;
+  relevantDocIds: string[];
+  tags: string[]; // e.g., ["pricing", "edge-case", "multi-hop"]
+}
+
+interface EvalResult {
+  caseId: string;
+  actualAnswer: string;
+  retrievedDocIds: string[];
+  retrievalRecall: number;
+  answerScore: number; // 0-1 from LLM judge
+  latencyMs: number;
+}
+
+async function runEvalSuite(cases: EvalCase[]): Promise<EvalResult[]> {
+  const results: EvalResult[] = [];
+
+  for (const evalCase of cases) {
+    const start = Date.now();
+    const { answer, retrievedIds } = await ragPipeline(evalCase.query);
+    const latencyMs = Date.now() - start;
+
+    const retrievalRecall = recallAtK(
+      retrievedIds,
+      new Set(evalCase.relevantDocIds),
+      5
+    );
+
+    const answerScore = await llmJudge(
+      evalCase.query,
+      evalCase.expectedAnswer,
+      answer
+    );
+
+    results.push({
+      caseId: evalCase.id,
+      actualAnswer: answer,
+      retrievedDocIds: retrievedIds,
+      retrievalRecall,
+      answerScore,
+      latencyMs,
+    });
+  }
+
+  return results;
+}
+```
+
+A few things I've learned about building eval suites. **Include edge cases from the start.** Multi-hop questions (where the answer spans multiple documents), negation questions ("which products do NOT support X"), and questions where the answer genuinely isn't in the corpus. These are where RAG systems fail most often, and they're the ones your users will notice.
+
+**Tag your eval cases.** When your average score drops, you need to know *which categories* regressed. A global score hides too much. Tags like `factual`, `multi-hop`, `out-of-scope`, and `recent-data` let you slice the results and find the actual problem.
+
+**Track latency.** It's easy to build a system that's accurate but takes 15 seconds to respond. Log latency per eval case alongside quality scores — you'll want both when making trade-off decisions.
+
+---
+
+## LLM-as-Judge
+
+This is the part that felt wrong to me at first — using one LLM to evaluate another LLM's output. It sounds circular. But in practice, it works remarkably well for most evaluation tasks, and it's the only scalable option when your eval suite grows past what humans can review.
+
+The key is a **well-structured rubric** and **structured output parsing.** You give the judge model the question, the expected answer, and the actual answer, and ask it to score on specific criteria.
+
+```python
+import json
+import openai
+
+JUDGE_PROMPT = """You are evaluating the quality of a RAG system response.
+
+Given:
+- The user's question
+- The expected answer
+- The actual answer from the system
+
+Score the response on two criteria:
+
+1. **Correctness** (0-5): Does the response contain accurate information
+   that answers the question? 0 = completely wrong, 5 = fully correct.
+
+2. **Completeness** (0-5): Does the response cover all key points from
+   the expected answer? 0 = missing everything, 5 = fully complete.
+
+Respond in JSON: {"correctness": int, "completeness": int, "reasoning": str}
+"""
+
+
+def judge_response(
+    question: str,
+    expected: str,
+    actual: str,
+) -> dict:
+    response = openai.chat.completions.create(
+        model="gpt-4o-mini",  # Smaller model keeps cost manageable
+        messages=[
+            {"role": "system", "content": JUDGE_PROMPT},
+            {
+                "role": "user",
+                "content": (
+                    f"Question: {question}\n\n"
+                    f"Expected answer: {expected}\n\n"
+                    f"Actual answer: {actual}"
+                ),
+            },
+        ],
+        response_format={"type": "json_object"},
+    )
+
+    return json.loads(response.choices[0].message.content)
+```
+
+A few lessons on LLM-as-judge that I've picked up.
+
+**Use a smaller, cheaper model as the judge.** The judge doesn't need to be the most powerful model available — it needs to follow a rubric consistently. GPT-4o-mini or Claude Haiku work well and cost a fraction of the larger models. Since you're running the judge on every eval case, cost adds up fast.
+
+**The rubric is everything.** A vague rubric produces vague scores. Be specific about what each score level means. I've found that providing short examples of what a 1, 3, and 5 look like for each criterion dramatically improves consistency.
+
+**Structured output is non-negotiable.** You need scores you can aggregate and track over time, not free-text opinions. Force JSON output and validate the schema. If the model returns something unparseable, flag it and retry — don't silently drop it.
+
+> **Calibrate your judge against human ratings.** Take 50 eval cases, have a human score them, then run the judge on the same cases. If the correlation is high (and it usually is for factual correctness), you can trust the judge for ongoing evaluation. If it's low for a specific criterion, you know where the judge's blind spots are.
+
+---
+
+## Scoring and Metrics
+
+Once you have scores from your eval suite — retrieval recall, LLM judge scores, latency — the question is what to do with them.
+
+**Binary pass/fail is tempting but lossy.** A pass/fail threshold throws away signal. I prefer tracking the raw scores and using thresholds only for alerting — "flag this if the average correctness score drops below 3.5" — while keeping the full distribution for analysis.
+
+**Aggregate carefully.** An average score across your entire eval suite can mask problems. If your pricing questions score 4.8 and your multi-hop questions score 1.2, the average looks fine but half your system is broken. Always break scores down by tag.
+
+**Track over time.** The single most valuable thing about an eval suite is the **trend line.** Every time you change your chunking strategy, swap an embedding model, or update the system prompt, run the full suite and compare to the previous baseline. This is how you catch regressions before they reach production.
+
+**Set up regression detection.** Automate this if you can. If a code change causes the eval score to drop by more than a threshold compared to the previous run, block the deployment or at least flag it for review. This is the CI/CD equivalent for AI systems.
+
+---
+
+## Keeping Evals Fresh
+
+Here's the uncomfortable truth: **your eval suite will rot.** Your product changes. Your data changes. Your users start asking questions you didn't anticipate. An eval suite built six months ago might be testing things that no longer matter while completely missing the failure modes your users actually hit.
+
+**Sample from production.** Periodically pull real queries from your production logs (anonymised and stripped of PII) and add the interesting ones to your eval suite. Interesting means: queries that got low confidence scores, queries that users thumbed down, queries that hit edge cases your current suite doesn't cover.
+
+**Review and prune.** Eval cases become stale when the expected answers change — maybe a product feature was renamed, or a policy was updated. Schedule a quarterly review where you go through the eval suite and update or remove cases that no longer reflect reality.
+
+**Don't let the suite grow unbounded.** A thousand eval cases that take 20 minutes to run will stop being run. Keep it focused. Aim for broad coverage of your most important query types rather than exhaustive coverage of everything.
+
+The goal is a suite that's small enough to run on every meaningful change, representative enough to catch real problems, and fresh enough to reflect your actual product. That's a maintenance commitment — but so is any test suite that matters.
+
+---
+
+## Questions?
+
+If you're building evaluation systems for RAG or LLM-powered features and want to talk through your approach — metrics, judge design, regression detection, or anything else — feel free to reach out. I'm happy to help where I can.
+
+You can find me at [rmccaffr@tcd.ie](mailto:rmccaffr@tcd.ie) or on [LinkedIn](https://linkedin.com/in/robbiemc8).
+
+---
+
+*This is part 2 of [AI Agent Architecture](/blog) — a practitioner's guide to building with LLMs. Previously: [Building RAG From Scratch](/blog/building-rag-from-scratch). Next up: agent architecture patterns.*

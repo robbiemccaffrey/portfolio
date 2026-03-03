@@ -4,7 +4,7 @@ import NewsletterSignup from '../../components/NewsletterSignup.astro';
 import { getCollection, type CollectionEntry } from 'astro:content';
 
 export async function getStaticPaths() {
-  const posts = await getCollection('blog', ({ data }) => !data.draft);
+  const posts = await getCollection('blog');
   return posts.map((post) => ({
     params: { slug: post.slug },
     props: { post },
@@ -15,7 +15,7 @@ type Props = { post: CollectionEntry<'blog'> };
 
 const { post } = Astro.props;
 const { Content } = await post.render();
-const { title, date, description, tags, image, imageAlt } = post.data;
+const { title, date, description, tags, image, imageAlt, draft } = post.data;
 
 const formattedDate = new Intl.DateTimeFormat('en-IE', {
   day: 'numeric',
@@ -41,6 +41,13 @@ const readingTime = Math.max(1, Math.round(wordCount / 230));
       </svg>
       All posts
     </a>
+
+    <!-- Draft banner -->
+    {draft && (
+      <div class="mb-6 px-4 py-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 text-sm font-medium">
+        Draft — this post is not published yet.
+      </div>
+    )}
 
     <!-- Header -->
     <header class="mb-10">

@@ -4,10 +4,11 @@ import BlogCard from '../../components/BlogCard.astro';
 import NewsletterSignup from '../../components/NewsletterSignup.astro';
 import { getCollection } from 'astro:content';
 
-const allPosts = await getCollection('blog', ({ data }) => !data.draft);
+const allPosts = await getCollection('blog');
 const posts = allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
 
-const allTags = [...new Set(posts.flatMap((p) => p.data.tags))].sort();
+const publishedPosts = posts.filter((p) => !p.data.draft);
+const allTags = [...new Set(publishedPosts.flatMap((p) => p.data.tags))].sort();
 ---
 
 <Layout
@@ -62,6 +63,8 @@ const allTags = [...new Set(posts.flatMap((p) => p.data.tags))].sort();
           data-title={post.data.title.toLowerCase()}
           data-description={post.data.description.toLowerCase()}
           data-tags={post.data.tags.join(',')}
+          data-draft={post.data.draft ? 'true' : undefined}
+          style={post.data.draft ? 'display:none' : undefined}
         >
           <BlogCard post={post} />
         </div>
@@ -89,10 +92,16 @@ const allTags = [...new Set(posts.flatMap((p) => p.data.tags))].sort();
 
   let activeTag   = 'all';
   let searchQuery = '';
+  let isAdmin     = false;
 
   function filter() {
     let visible = 0;
     postItems.forEach((el) => {
+      if (el.dataset.draft === 'true' && !isAdmin) {
+        el.style.display = 'none';
+        return;
+      }
+
       const matchesSearch =
         !searchQuery ||
         (el.dataset.title ?? '').includes(searchQuery) ||
@@ -133,4 +142,15 @@ const allTags = [...new Set(posts.flatMap((p) => p.data.tags))].sort();
       filter();
     });
   });
+
+  // Show draft posts if logged in as admin
+  (async () => {
+    try {
+      const res = await fetch('/api/admin/subscribers', { credentials: 'include' });
+      if (res.ok) {
+        isAdmin = true;
+        filter();
+      }
+    } catch {}
+  })();
 </script>

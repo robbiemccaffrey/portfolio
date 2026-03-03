@@ -1,0 +1,328 @@
+---
+title: "Agent Architecture Patterns: From Simple to Autonomous"
+date: 2026-03-10
+description: "A practical tour of agent architecture patterns — augmented LLMs, routing, parallelisation, evaluator-optimiser loops, and when to use each one."
+tags: ["ai", "agents", "architecture", "llm"]
+draft: true
+---
+
+## Start With the Simplest Thing
+
+The word "agent" has been stretched to cover everything from a chatbot with a system prompt to a fully autonomous multi-step planner. This is unhelpful. Most of the time, what you actually need is a well-configured LLM with access to some tools — not an autonomous loop that decides its own next steps.
+
+I've built systems across this spectrum, and the pattern I keep coming back to is: **start with the simplest architecture that could work, and only add complexity when you hit a specific wall.** Not when you think you might hit a wall. When you actually do.
+
+The architectures below are ordered from simplest to most complex. Each one builds on the last. In practice, most production systems I've seen land in the first two or three patterns — full autonomy is rarer than the hype suggests, and for good reason.
+
+---
+
+## The Augmented LLM
+
+This is the building block. An LLM with a system prompt, access to tools, and optionally some retrieval context injected into the conversation. It's not an "agent" in the agentic sense — it doesn't plan or loop. It responds to a single request, optionally calling tools along the way.
+
+This pattern handles a surprising number of use cases. Customer support with knowledge base access. Data analysis with SQL tools. Content generation with style guidelines. If the task can be completed in a single turn with tool calls, this is all you need.
+
+```typescript
+import OpenAI from "openai";
+
+const client = new OpenAI();
+
+const tools: OpenAI.ChatCompletionTool[] = [
+  {
+    type: "function",
+    function: {
+      name: "lookup_order",
+      description: "Look up an order by ID",
+      parameters: {
+        type: "object",
+        properties: {
+          orderId: { type: "string", description: "The order ID" },
+        },
+        required: ["orderId"],
+      },
+    },
+  },
+];
+
+// Tool implementations
+const toolHandlers: Record<string, (args: any) => Promise<string>> = {
+  lookup_order: async ({ orderId }) => {
+    const order = await db.orders.findById(orderId);
+    return JSON.stringify(order);
+  },
+};
+
+async function handleRequest(userMessage: string): Promise<string> {
+  let messages: OpenAI.ChatCompletionMessageParam[] = [
+    { role: "system", content: "You are a support agent. Use tools to look up information." },
+    { role: "user", content: userMessage },
+  ];
+
+  // Single tool-use loop — call tools until the model produces a final response
+  while (true) {
+    const response = await client.chat.completions.create({
+      model: "gpt-4o",
+      messages,
+      tools,
+    });
+
+    const choice = response.choices[0];
+    messages.push(choice.message);
+
+    if (choice.finish_reason === "stop") {
+      return choice.message.content ?? "";
+    }
+
+    // Execute each tool call and feed results back
+    for (const toolCall of choice.message.tool_calls ?? []) {
+      const handler = toolHandlers[toolCall.function.name];
+      const args = JSON.parse(toolCall.function.arguments);
+      const result = await handler(args);
+      messages.push({ role: "tool", tool_call_id: toolCall.id, content: result });
+    }
+  }
+}
+```
+
+The `while` loop here isn't autonomy — it's just handling the back-and-forth of tool calls within a single request. The model might call one tool, get a result, call another, and then produce a final response. But it's all in service of a single user request.
+
+---
+
+## Routing
+
+Once your system needs to handle multiple distinct types of requests, a single augmented LLM starts to strain. Different request types might need different system prompts, different tools, or entirely different processing pipelines. **Routing** solves this — classify the input, then hand it off to a specialised handler.
+
+This is less about AI architecture and more about good software design. You wouldn't build a monolithic function that handles every API endpoint. Same principle applies here.
+
+```python
+import openai
+import json
+
+ROUTER_PROMPT = """Classify the user's message into one of these categories:
+- "order_inquiry" — questions about existing orders, shipping, returns
+- "product_question" — questions about product features, pricing, availability
+- "technical_support" — bug reports, how-to questions, troubleshooting
+- "general" — anything that doesn't fit the above
+
+Respond in JSON: {"category": str, "confidence": float}"""
+
+
+def classify_intent(message: str) -> tuple[str, float]:
+    response = openai.chat.completions.create(
+        model="gpt-4o-mini",  # Fast and cheap for classification
+        messages=[
+            {"role": "system", "content": ROUTER_PROMPT},
+            {"role": "user", "content": message},
+        ],
+        response_format={"type": "json_object"},
+    )
+    result = json.loads(response.choices[0].message.content)
+    return result["category"], result["confidence"]
+
+
+# Each category gets its own handler with specialised prompts and tools
+HANDLERS = {
+    "order_inquiry": handle_order_inquiry,
+    "product_question": handle_product_question,
+    "technical_support": handle_technical_support,
+    "general": handle_general,
+}
+
+
+def route_request(message: str) -> str:
+    category, confidence = classify_intent(message)
+
+    if confidence < 0.7:
+        category = "general"  # Fall back when unsure
+
+    handler = HANDLERS[category]
+    return handler(message)
+```
+
+A few things to note. **Use a small, fast model for routing.** The classifier doesn't need to be brilliant — it just needs to pick the right bucket. GPT-4o-mini or Claude Haiku are plenty. You save your expensive model for the actual generation work.
+
+**Always have a fallback.** Low-confidence classifications should route to a general handler rather than risk sending a message to the wrong specialist. A slightly generic response is better than a confidently wrong one.
+
+**Routing doesn't have to be LLM-based.** For well-defined categories, a simple keyword classifier or even a regex-based router might be sufficient and costs nothing. Use an LLM for routing only when the boundaries between categories are fuzzy.
+
+---
+
+## Parallelisation
+
+Some tasks are naturally decomposable into independent subtasks. Rather than processing them sequentially, you run them in parallel and aggregate the results. This shows up in two flavours.
+
+**Sectioning** splits work across independent processors. Summarise three documents simultaneously. Extract entities from different sections of a contract. Run the same query against multiple data sources and merge the results.
+
+**Voting** runs the same task multiple times (potentially with different prompts or models) and uses consensus or aggregation to improve reliability. This is useful when accuracy matters more than latency — you get three opinions and take the majority.
+
+```typescript
+interface ToolResult {
+  tool: string;
+  result: string;
+}
+
+async function parallelToolExecution(
+  query: string,
+  tools: string[]
+): Promise<ToolResult[]> {
+  // Run all tools concurrently
+  const results = await Promise.allSettled(
+    tools.map(async (tool) => {
+      const result = await executeTool(tool, query);
+      return { tool, result };
+    })
+  );
+
+  // Collect successful results, log failures
+  const successful: ToolResult[] = [];
+  for (const result of results) {
+    if (result.status === "fulfilled") {
+      successful.push(result.value);
+    } else {
+      console.error(`Tool failed: ${result.reason}`);
+    }
+  }
+
+  return successful;
+}
+
+// Use the aggregated results in a single generation call
+async function answerWithParallelContext(query: string): Promise<string> {
+  const toolResults = await parallelToolExecution(query, [
+    "search_docs",
+    "query_database",
+    "check_recent_tickets",
+  ]);
+
+  const context = toolResults
+    .map((r) => `[${r.tool}]: ${r.result}`)
+    .join("\n\n");
+
+  return generateResponse(query, context);
+}
+```
+
+The important detail here is **graceful degradation.** If one of three parallel tools fails, you probably still have enough context to generate a useful response. Use `Promise.allSettled` (not `Promise.all`) so a single failure doesn't kill the entire request.
+
+Parallelisation is the most underused pattern I see. It's simple to implement, it reduces latency, and it improves robustness. If you're calling three tools sequentially and they're independent of each other — parallelise them.
+
+---
+
+## Evaluator-Optimiser Loops
+
+This is where we start adding real iteration. The pattern is: **generate → evaluate → refine.** The model produces an output, a validator checks it against some criteria, and if it doesn't pass, the model tries again with the feedback.
+
+This is useful when the output has verifiable constraints — valid JSON, SQL that actually executes, code that passes tests, or content that meets a style guide.
+
+```python
+import json
+import openai
+
+
+def generate_with_validation(
+    prompt: str,
+    max_retries: int = 3,
+) -> dict | None:
+    """Generate JSON output with automatic repair on validation failure."""
+
+    messages = [
+        {"role": "system", "content": "Respond with valid JSON matching the requested schema."},
+        {"role": "user", "content": prompt},
+    ]
+
+    for attempt in range(max_retries):
+        response = openai.chat.completions.create(
+            model="gpt-4o",
+            messages=messages,
+            response_format={"type": "json_object"},
+        )
+
+        content = response.choices[0].message.content
+
+        try:
+            parsed = json.loads(content)
+            errors = validate_schema(parsed)
+
+            if not errors:
+                return parsed  # Valid — done
+
+            # Feed validation errors back for the next attempt
+            messages.append({"role": "assistant", "content": content})
+            messages.append({
+                "role": "user",
+                "content": f"Schema validation failed:\n{chr(10).join(errors)}\n\nFix these issues.",
+            })
+
+        except json.JSONDecodeError as e:
+            messages.append({"role": "assistant", "content": content})
+            messages.append({
+                "role": "user",
+                "content": f"Invalid JSON: {e}. Return valid JSON.",
+            })
+
+    return None  # Give up after max retries
+```
+
+The critical design decision is **when to give up.** Three retries is a reasonable default. If the model can't produce valid output after three attempts with explicit feedback, a fourth attempt is unlikely to help. At that point, log the failure, return a graceful error, and alert someone.
+
+Don't use this pattern for subjective quality. If "good enough" is hard to define programmatically, an evaluator-optimiser loop just burns tokens without converging. It works best when validation is cheap, fast, and deterministic.
+
+---
+
+## Autonomous Tool-Use Loops
+
+This is the full agent pattern: the model is given a goal, a set of tools, and the ability to **plan its own sequence of actions.** It decides what to do next, executes it, observes the result, and repeats until the goal is met — or it decides the goal can't be met.
+
+I'm deliberately putting this last because **most systems don't need it.** Autonomous loops are powerful but hard to control. The model might take unexpected paths, call tools in orders you didn't anticipate, or get stuck in loops. Debugging is harder because the execution path isn't deterministic.
+
+When it's worth the complexity: tasks that genuinely require multi-step reasoning with branching logic. Research workflows where the next step depends on what was found in the previous step. Complex data gathering where the required sources aren't known upfront.
+
+**Human-in-the-loop is the safety valve.** For anything that has real-world consequences — sending emails, making API calls, modifying data — require human approval before execution. Let the agent plan and propose, but keep a human in the decision loop for anything irreversible.
+
+---
+
+## Prompt Engineering as Architecture
+
+One thing I've learned is that the system prompt is as much a part of your architecture as any code you write. A well-designed system prompt handles things that would otherwise require code-level changes:
+
+**Anti-hallucination rules.** "Only use information from the provided context. If you don't know, say you don't know." This single instruction dramatically reduces confabulation in RAG systems.
+
+**Output formatting.** "Respond in JSON matching this schema" or "Use markdown with H2 headers for each section." Formatting constraints in the prompt save you from writing brittle parsing code.
+
+**Tool usage instructions.** "Always check the knowledge base before answering. If the user asks about pricing, use the pricing_lookup tool." Without these, the model might try to answer from its training data instead of using the tools you gave it.
+
+**Guardrails.** "Never discuss competitor products. Always recommend consulting a professional for medical or legal questions." These constraints are cheaper and faster to iterate on in a prompt than in code.
+
+The system prompt should be version-controlled, reviewed in PRs, and tested like any other part of your system. I've seen more production issues caused by prompt regressions than by code bugs.
+
+---
+
+## Choosing the Right Pattern
+
+Here's the decision framework I use:
+
+**Can a single LLM call with tools handle it?** Start with the augmented LLM. This covers more use cases than you'd think.
+
+**Are there distinct request types that need different handling?** Add routing. Keep the individual handlers as simple augmented LLMs.
+
+**Are there independent subtasks that can run concurrently?** Add parallelisation. This is almost always a net positive and costs nothing in complexity.
+
+**Does the output have verifiable constraints?** Add an evaluator-optimiser loop for that specific output stage. Don't loop the whole pipeline — loop the part that has checkable criteria.
+
+**Does the task genuinely require multi-step planning with dynamic tool selection?** Now consider an autonomous loop. Add human-in-the-loop for anything with real-world consequences.
+
+The pattern I see most often in production is a **router in front of several augmented LLMs,** some of which use parallelised tool calls, with evaluator loops on specific outputs (like structured data extraction). Full autonomy is rare and usually scoped to internal tools where the blast radius is contained.
+
+**Resist the temptation to build the most complex version first.** Every layer of complexity you add is a layer you have to debug, monitor, and maintain. The right architecture is the simplest one that meets your requirements today — not the most impressive one you can imagine for tomorrow.
+
+---
+
+## Questions?
+
+If you're designing an agent architecture and want to talk through the trade-offs — which pattern fits your use case, where to draw the line on autonomy, or how to structure the system prompt — feel free to reach out.
+
+You can find me at [rmccaffr@tcd.ie](mailto:rmccaffr@tcd.ie) or on [LinkedIn](https://linkedin.com/in/robbiemc8).
+
+---
+
+*This is part 3 of [AI Agent Architecture](/blog) — a practitioner's guide to building with LLMs. Previously: [Building RAG From Scratch](/blog/building-rag-from-scratch) and [Evaluating RAG Systems](/blog/evaluating-rag-systems).*
