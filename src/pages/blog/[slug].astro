@@ -24,7 +24,11 @@ const formattedDate = new Intl.DateTimeFormat('en-IE', {
 }).format(date);
 
 const body = post.body ?? '';
-const wordCount = body.split(/\s+/).length;
+const stripped = body
+  .replace(/```[\s\S]*?```/g, '')   // remove fenced code blocks
+  .replace(/<[^>]+>/g, ' ')          // remove HTML/SVG tags
+  .replace(/[{}()\[\];=<>\/\\|`#*_~]/g, ' '); // remove code-like punctuation
+const wordCount = stripped.split(/\s+/).filter(w => w.length > 0).length;
 const readingTime = Math.max(1, Math.round(wordCount / 230));
 ---
 
