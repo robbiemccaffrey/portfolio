@@ -56,6 +56,13 @@
     "type": "video"
   },
   {
+    "title": "QZero — Mastering Go without Search",
+    "url": "https://arxiv.org/abs/2601.03306",
+    "description": "Introduces QZero, a model-free RL approach that masters Go using self-play and experience replay without Monte-Carlo Tree Search — reaching AlphaGo-level play on just 7 GPUs.",
+    "category": "LLM Fundamentals",
+    "type": "paper"
+  },
+  {
     "title": "On the Biology of a Large Language Model",
     "url": "https://transformer-circuits.pub/2025/attribution-graphs/biology.html",
     "description": "Anthropic's circuit tracing research on Claude 3.5 Haiku — uses attribution graphs to reveal how LLMs perform multi-step reasoning, planning, and multilingual processing internally.",
