@@ -87,7 +87,93 @@ A neural network is a mathematical function loosely inspired by the brain. It's 
   </div>
 </div>
 
-Training works by showing the network examples, measuring how wrong its predictions are (the **loss**), and nudging all the weights slightly in the direction that reduces the error. Do this billions of times across trillions of examples, and the weights converge on values that make the network remarkably good at its task. The key insight: nobody programs the rules. The network discovers them from the data.
+### The Loss Function — How the Network Learns
+
+Training works by showing the network examples, measuring how wrong its predictions are, and nudging all the weights slightly in the direction that reduces the error. The measurement of "how wrong" is called the **loss function**. For language models, the loss is simple: the model predicts a probability distribution over the next token, and the loss measures how far that prediction was from the actual next token. If the model assigns 90% probability to the correct token, the loss is low. If it assigns 2%, the loss is high.
+
+An algorithm called **backpropagation** then traces backwards through the network, calculating how much each individual weight contributed to the error. Every weight gets a tiny nudge in the direction that would have made the prediction better. Multiply this by billions of weights and trillions of training examples, and the weights gradually converge on values that make the network remarkably good at its task. The key insight: nobody programs the rules. The network discovers them from the data.
+
+The loss curve is the single most important chart during training. You watch it like a heart monitor:
+
+<div class="not-prose my-8">
+  <div class="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div class="px-5 py-2.5 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 font-sans text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Training loss curve — what a healthy training run looks like</div>
+    <div class="px-4 py-6 sm:px-8 sm:py-8">
+      <svg viewBox="0 0 700 220" class="w-full" aria-label="Loss curve showing training loss decreasing steeply at first then gradually flattening, with validation loss following but diverging slightly at the end indicating overfitting.">
+        {/* Axes */}
+        <line x1="60" y1="190" x2="660" y2="190" class="stroke-gray-300 dark:stroke-gray-600" stroke-width="1.5"/>
+        <line x1="60" y1="190" x2="60" y2="20" class="stroke-gray-300 dark:stroke-gray-600" stroke-width="1.5"/>
+        <text x="360" y="216" text-anchor="middle" font-size="11" font-family="system-ui" class="fill-gray-500 dark:fill-gray-400">Training steps (billions of tokens processed)</text>
+        <text x="18" y="105" text-anchor="middle" font-size="11" font-family="system-ui" class="fill-gray-500 dark:fill-gray-400" transform="rotate(-90, 18, 105)">Loss</text>
+
+        {/* Grid lines */}
+        {[60, 105, 145, 175].map((y, i) => (
+          <line key={`grid-${i}`} x1="60" y1={y} x2="660" y2={y} class="stroke-gray-100 dark:stroke-gray-800" stroke-width="0.5"/>
+        ))}
+
+        {/* Training loss - steep drop then gradual */}
+        <path d="M 80 40 C 120 55, 150 90, 200 120 C 260 145, 350 158, 450 165 C 530 170, 600 173, 650 175" fill="none" class="stroke-blue-500 dark:stroke-blue-400" stroke-width="2.5"/>
+
+        {/* Validation loss - follows training but diverges slightly */}
+        <path d="M 80 45 C 120 62, 150 98, 200 128 C 260 150, 350 162, 450 168 C 530 171, 600 170, 650 168" fill="none" class="stroke-orange-400 dark:stroke-orange-500" stroke-width="2" stroke-dasharray="6,4"/>
+
+        {/* Labels */}
+        <rect x="480" y="30" width="170" height="55" rx="6" class="fill-gray-50 dark:fill-gray-800/80 stroke-gray-200 dark:stroke-gray-700" stroke-width="1"/>
+        <line x1="490" y1="48" x2="520" y2="48" class="stroke-blue-500 dark:stroke-blue-400" stroke-width="2.5"/>
+        <text x="528" y="52" font-size="10" font-family="system-ui" class="fill-gray-700 dark:fill-gray-300">Training loss</text>
+        <line x1="490" y1="68" x2="520" y2="68" class="stroke-orange-400 dark:stroke-orange-500" stroke-width="2" stroke-dasharray="6,4"/>
+        <text x="528" y="72" font-size="10" font-family="system-ui" class="fill-gray-700 dark:fill-gray-300">Validation loss</text>
+
+        {/* Annotations */}
+        <text x="130" y="75" font-size="9" font-family="system-ui" class="fill-emerald-600 dark:fill-emerald-400">Rapid learning</text>
+        <text x="340" y="148" font-size="9" font-family="system-ui" class="fill-gray-500 dark:fill-gray-400">Diminishing returns</text>
+
+        {/* Y-axis labels */}
+        <text x="52" y="44" text-anchor="end" font-size="9" font-family="system-ui" class="fill-gray-400 dark:fill-gray-500">High</text>
+        <text x="52" y="180" text-anchor="end" font-size="9" font-family="system-ui" class="fill-gray-400 dark:fill-gray-500">Low</text>
+      </svg>
+    </div>
+    <div class="px-5 py-3 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400">
+      Loss drops steeply at first (the model learns basic patterns fast), then gradually flattens as improvements get harder to find. If training loss keeps dropping but validation loss starts <em>rising</em>, the model is <strong>overfitting</strong> — memorising training data rather than learning generalisable patterns. Engineers monitor these curves 24/7 during multi-month training runs.
+    </div>
+  </div>
+</div>
+
+A loss curve that's steadily decreasing means the model is learning. A loss curve that plateaus means you've extracted most of the value from your data and architecture. A loss curve that spikes means something has gone wrong — a bad batch of data, a learning rate issue, a hardware failure. Training runs that cost tens of millions of dollars have been scrapped because the loss curve went in the wrong direction. When you're burning $100,000+ per day on compute, every hour of bad training is expensive.
+
+### Why GPUs Are So Expensive (and in Such High Demand)
+
+Training a model like GPT-4 requires thousands of GPUs running continuously for months. But why GPUs? The answer is parallelism. A CPU handles tasks sequentially — it's fast at doing one thing at a time. A GPU was originally designed for rendering millions of pixels simultaneously on a screen. It turns out that the mathematical operations behind neural networks — multiplying huge matrices of numbers — are structurally identical to the operations behind rendering graphics. Thousands of simple cores doing the same operation in parallel is exactly what training needs.
+
+NVIDIA's H100 GPU — the workhorse of modern AI training — costs roughly $30,000-$40,000 per unit. A serious training cluster needs thousands of them. Meta's Llama 3 training used 16,384 H100s running for weeks. At cloud rates, a single H100 rents for roughly $2-3 per hour. A 10,000-GPU cluster at $2.50/hour burns **$600,000 per day** — just on compute, before electricity, cooling, networking, and engineering salaries.
+
+<div class="not-prose my-8">
+  <div class="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div class="px-5 py-2.5 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 font-sans text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">The economics of training</div>
+    <div class="px-4 py-6 sm:px-8 sm:py-8 space-y-4">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4 text-center">
+          <div class="text-2xl font-bold text-gray-800 dark:text-gray-200">$672</div>
+          <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">GPT-2 reproduction (2024)</div>
+          <div class="text-xs text-gray-400 dark:text-gray-500">124M parameters</div>
+        </div>
+        <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4 text-center">
+          <div class="text-2xl font-bold text-gray-800 dark:text-gray-200">~$5M</div>
+          <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Llama 3 70B (2024)</div>
+          <div class="text-xs text-gray-400 dark:text-gray-500">70B parameters</div>
+        </div>
+        <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4 text-center">
+          <div class="text-2xl font-bold text-gray-800 dark:text-gray-200">$100M+</div>
+          <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">GPT-4 class (estimated)</div>
+          <div class="text-xs text-gray-400 dark:text-gray-500">~1.8T parameters</div>
+        </div>
+      </div>
+      <p class="text-xs text-gray-500 dark:text-gray-400">This is why AI is dominated by a small number of companies with access to massive capital. Training a frontier model isn't a software problem — it's an infrastructure problem. The scarcity of high-end GPUs is the primary bottleneck in AI progress today.</p>
+    </div>
+  </div>
+</div>
+
+The demand is so extreme that NVIDIA's market capitalisation tripled in 2024, and companies are placing GPU orders years in advance. Every major tech company — Microsoft, Google, Meta, Amazon — is building dedicated AI data centres. The constraint isn't ideas or algorithms; it's access to enough compute to train and run these models at scale.
 
 A **transformer** is a specific type of neural network architecture, introduced in the 2017 paper ["Attention Is All You Need"](https://arxiv.org/abs/1706.03762). What makes transformers special is the **attention mechanism** — the ability to look at all previous tokens simultaneously and decide which ones are relevant for predicting the next one. Previous architectures (RNNs, LSTMs) processed tokens sequentially, like reading one word at a time and trying to remember. Transformers can look at the whole sentence at once. This is what made them scale — and it's why every modern LLM is built on them.
 
