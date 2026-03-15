@@ -1124,6 +1124,133 @@ RLVR also unlocked a new scaling axis: **test-time compute**. Instead of making 
 
 Karpathy notes that compute budgets shifted significantly in 2025 — away from pretraining and toward RL. Models stayed similar sizes but got dramatically smarter through longer reinforcement learning training runs. The returns from RLVR haven't plateaued the way RLHF's did.
 
+### Reasoning Models vs Standard Models — The New Landscape
+
+RLVR created a split in the model landscape. There are now two distinct categories of LLM, and knowing which to use matters:
+
+**Standard models** (sometimes called "chat" or "instruct" models) go through pretraining + SFT + RLHF. They're fast, versatile, and good at most tasks — writing, summarising, translating, answering questions, generating code. They respond in one pass without extended internal deliberation.
+
+**Reasoning models** go through all of that *plus* RLVR. They spend extra time "thinking" before responding — generating an internal chain of reasoning that can run for thousands of tokens before producing a final answer. They're slower and more expensive to run, but dramatically better at problems that require multi-step logic.
+
+<div class="not-prose my-8">
+  <div class="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div class="px-5 py-2.5 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 font-sans text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Standard vs reasoning models — when to use which</div>
+    <div class="px-4 py-2 sm:px-8">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-gray-200 dark:border-gray-700">
+            <th class="py-3 text-left font-semibold text-gray-700 dark:text-gray-300"></th>
+            <th class="py-3 text-left font-semibold text-blue-700 dark:text-blue-300">Standard models</th>
+            <th class="py-3 text-left font-semibold text-purple-700 dark:text-purple-300">Reasoning models</th>
+          </tr>
+        </thead>
+        <tbody class="text-gray-600 dark:text-gray-400">
+          <tr class="border-b border-gray-100 dark:border-gray-800">
+            <td class="py-2.5 font-medium text-gray-700 dark:text-gray-300">Training</td>
+            <td class="py-2.5">Pretrain + SFT + RLHF</td>
+            <td class="py-2.5">Pretrain + SFT + RLHF + <strong class="text-purple-600 dark:text-purple-400">RLVR</strong></td>
+          </tr>
+          <tr class="border-b border-gray-100 dark:border-gray-800">
+            <td class="py-2.5 font-medium text-gray-700 dark:text-gray-300">Speed</td>
+            <td class="py-2.5">Fast — responds immediately</td>
+            <td class="py-2.5">Slower — "thinks" before answering</td>
+          </tr>
+          <tr class="border-b border-gray-100 dark:border-gray-800">
+            <td class="py-2.5 font-medium text-gray-700 dark:text-gray-300">Cost</td>
+            <td class="py-2.5">Cheaper per query</td>
+            <td class="py-2.5">More expensive (longer outputs)</td>
+          </tr>
+          <tr class="border-b border-gray-100 dark:border-gray-800">
+            <td class="py-2.5 font-medium text-gray-700 dark:text-gray-300">Best for</td>
+            <td class="py-2.5">Writing, chat, summarisation, translation, simple code, Q&A</td>
+            <td class="py-2.5">Maths, complex code, logic puzzles, multi-step analysis, research</td>
+          </tr>
+          <tr class="border-b border-gray-100 dark:border-gray-800">
+            <td class="py-2.5 font-medium text-gray-700 dark:text-gray-300">Overkill for</td>
+            <td class="py-2.5">—</td>
+            <td class="py-2.5">Simple questions, casual chat, basic drafting</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+Here's how the major providers map to this landscape:
+
+<div class="not-prose my-8">
+  <div class="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div class="px-5 py-2.5 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 font-sans text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">The current model landscape (early 2026)</div>
+    <div class="px-4 py-6 sm:px-8 sm:py-8 space-y-5">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="space-y-3">
+          <div class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">OpenAI</div>
+          <div class="space-y-1.5">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-blue-400 shrink-0"></span>
+              <span class="text-sm text-gray-700 dark:text-gray-300">GPT-4o <span class="text-xs text-gray-400">(standard)</span></span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-purple-400 shrink-0"></span>
+              <span class="text-sm text-gray-700 dark:text-gray-300">o1 <span class="text-xs text-gray-400">(reasoning)</span></span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-purple-400 shrink-0"></span>
+              <span class="text-sm text-gray-700 dark:text-gray-300">o3 <span class="text-xs text-gray-400">(reasoning)</span></span>
+            </div>
+          </div>
+        </div>
+        <div class="space-y-3">
+          <div class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Anthropic</div>
+          <div class="space-y-1.5">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-blue-400 shrink-0"></span>
+              <span class="text-sm text-gray-700 dark:text-gray-300">Claude Sonnet <span class="text-xs text-gray-400">(standard)</span></span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-purple-400 shrink-0"></span>
+              <span class="text-sm text-gray-700 dark:text-gray-300">Claude Opus <span class="text-xs text-gray-400">(reasoning)</span></span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-blue-400 shrink-0"></span>
+              <span class="text-sm text-gray-700 dark:text-gray-300">Claude Haiku <span class="text-xs text-gray-400">(fast/cheap)</span></span>
+            </div>
+          </div>
+        </div>
+        <div class="space-y-3">
+          <div class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Open source</div>
+          <div class="space-y-1.5">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-blue-400 shrink-0"></span>
+              <span class="text-sm text-gray-700 dark:text-gray-300">Llama 3 <span class="text-xs text-gray-400">(standard)</span></span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-purple-400 shrink-0"></span>
+              <span class="text-sm text-gray-700 dark:text-gray-300">DeepSeek-R1 <span class="text-xs text-gray-400">(reasoning)</span></span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-purple-400 shrink-0"></span>
+              <span class="text-sm text-gray-700 dark:text-gray-300">QwQ <span class="text-xs text-gray-400">(reasoning)</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="flex items-center gap-4 pt-2 border-t border-gray-100 dark:border-gray-800">
+        <div class="flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-blue-400"></span>
+          <span class="text-xs text-gray-500 dark:text-gray-400">Standard — fast, versatile, cheaper</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-purple-400"></span>
+          <span class="text-xs text-gray-500 dark:text-gray-400">Reasoning — slower, better at hard problems</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+The practical rule of thumb: use a standard model for everyday tasks (drafting emails, summarising, quick questions) and switch to a reasoning model when the problem requires genuine multi-step thinking (debugging complex code, solving maths problems, planning a system architecture). Using a reasoning model to summarise an email is like hiring a structural engineer to hang a picture frame — it'll work, but you're paying for capability you don't need.
+
 ---
 
 ## The Full Pipeline
