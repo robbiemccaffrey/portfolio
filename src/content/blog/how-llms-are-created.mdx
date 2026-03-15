@@ -20,11 +20,184 @@ Everything starts with data. Pretraining is the foundational stage where a model
 
 The scale is staggering. Datasets like [FineWeb](https://huggingface.co/datasets/HuggingFaceFW/fineweb) contain over 1.2 billion web pages, heavily filtered for quality. Raw web crawls are noisy — full of spam, duplicates, and low-quality content — so significant effort goes into cleaning and deduplication before a single token is processed.
 
-Before any of this learning can happen, text needs to be converted into something a neural network can process. Raw text is a one-dimensional sequence of characters — just a long string. **Tokenization** converts this string into a sequence of symbols from a fixed vocabulary using Byte Pair Encoding (BPE). The algorithm starts with individual characters, then repeatedly merges the most frequent adjacent pairs into new tokens. After enough merges, you get a vocabulary — GPT-4's is roughly 100,000 tokens — where common words like "the" are single tokens, ordinary words like "understanding" might be one or two tokens, and rare words get split into several pieces.
+Before any of this learning can happen, text needs to be converted into something a neural network can process. Raw text is a one-dimensional sequence of characters — just a long string. **Tokenization** converts this string into a sequence of symbols from a fixed vocabulary using Byte Pair Encoding (BPE). The algorithm starts with individual characters, then repeatedly merges the most frequent adjacent pairs into new tokens. After enough merges, you get a vocabulary — GPT-4's is roughly 100,000 tokens.
 
-You can see this in action with [Tiktokenizer](https://tiktokenizer.vercel.app/) — paste some text and watch how it splits. Try your name, some code, text in another language. You'll notice the tokenizer is opinionated: English prose is efficient (few tokens per word), while unusual strings burn through tokens fast. This matters because the model's entire world is this token sequence. It never sees raw text — it sees a stream of integer IDs, one dimension, one token at a time.
+Here's how BPE builds up its vocabulary. It starts with single characters and iteratively merges the most common pairs:
 
-The transformer architecture — billions of parameters arranged in attention layers — then learns a single objective: **predict the next token**. Given the sequence of tokens so far, the model outputs a probability distribution over the entire vocabulary — a percentage chance for each of the ~100,000 possible next tokens. The token "Paris" might get 0.4% probability, "London" might get 0.3%, "the" might get 12%. Training adjusts billions of parameters so these probability distributions get better and better at matching what actually comes next in real text. This is trained over months on thousands of GPUs, processing trillions of tokens. The model sees no labels, no instructions, no notion of right or wrong. It just learns which tokens are likely to follow which other tokens.
+<div class="not-prose my-8">
+  <div class="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div class="px-5 py-2.5 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 font-sans text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Byte Pair Encoding — how tokens are built</div>
+    <div class="px-4 py-6 sm:px-8 sm:py-8">
+      <svg viewBox="0 0 700 280" class="w-full" aria-label="Diagram showing how Byte Pair Encoding iteratively merges character pairs into tokens">
+        {/* Row 1: Raw characters */}
+        <text x="16" y="28" font-size="11" font-family="system-ui" font-weight="600" class="fill-gray-500 dark:fill-gray-400">Start</text>
+        {["l","o","w","e","r","_","l","o","w","_","n","e","w","e","r"].map((ch, i) => (
+          <g key={`r1-${i}`}>
+            <rect x={80 + i * 40} y="10" width="34" height="32" rx="6" class="fill-gray-100 dark:fill-gray-800 stroke-gray-300 dark:stroke-gray-600" stroke-width="1"/>
+            <text x={80 + i * 40 + 17} y="31" text-anchor="middle" font-size="13" font-family="ui-monospace, monospace" class="fill-gray-800 dark:fill-gray-200">{ch === "_" ? "·" : ch}</text>
+          </g>
+        ))}
+        <text x="690" y="31" text-anchor="end" font-size="10" font-family="system-ui" class="fill-gray-400 dark:fill-gray-500">15 tokens</text>
+
+        {/* Arrow 1 */}
+        <line x1="350" y1="50" x2="350" y2="72" class="stroke-gray-300 dark:stroke-gray-600" stroke-width="1.5" marker-end="url(#arrow)"/>
+        <text x="370" y="66" font-size="10" font-family="system-ui" class="fill-blue-600 dark:fill-blue-400">merge "l" + "o" → "lo"</text>
+
+        {/* Row 2: After first merge */}
+        <text x="16" y="98" font-size="11" font-family="system-ui" font-weight="600" class="fill-gray-500 dark:fill-gray-400">Pass 1</text>
+        {["lo","w","e","r","_","lo","w","_","n","e","w","e","r"].map((ch, i) => (
+          <g key={`r2-${i}`}>
+            <rect x={80 + i * 44} y="80" width={ch.length > 1 ? 40 : 34} height="32" rx="6" class={ch.length > 1 ? "fill-blue-50 dark:fill-blue-900/30 stroke-blue-300 dark:stroke-blue-700" : "fill-gray-100 dark:fill-gray-800 stroke-gray-300 dark:stroke-gray-600"} stroke-width="1"/>
+            <text x={80 + i * 44 + (ch.length > 1 ? 20 : 17)} y="101" text-anchor="middle" font-size="13" font-family="ui-monospace, monospace" class={ch.length > 1 ? "fill-blue-700 dark:fill-blue-300" : "fill-gray-800 dark:fill-gray-200"}>{ch === "_" ? "·" : ch}</text>
+          </g>
+        ))}
+        <text x="690" y="101" text-anchor="end" font-size="10" font-family="system-ui" class="fill-gray-400 dark:fill-gray-500">13 tokens</text>
+
+        {/* Arrow 2 */}
+        <line x1="350" y1="120" x2="350" y2="142" class="stroke-gray-300 dark:stroke-gray-600" stroke-width="1.5" marker-end="url(#arrow)"/>
+        <text x="370" y="136" font-size="10" font-family="system-ui" class="fill-purple-600 dark:fill-purple-400">merge "lo" + "w" → "low"</text>
+
+        {/* Row 3: After second merge */}
+        <text x="16" y="168" font-size="11" font-family="system-ui" font-weight="600" class="fill-gray-500 dark:fill-gray-400">Pass 2</text>
+        {["low","e","r","_","low","_","n","e","w","e","r"].map((ch, i) => (
+          <g key={`r3-${i}`}>
+            <rect x={80 + i * 50} y="150" width={ch.length > 1 ? 44 : 34} height="32" rx="6" class={ch.length > 1 ? "fill-purple-50 dark:fill-purple-900/30 stroke-purple-300 dark:stroke-purple-700" : "fill-gray-100 dark:fill-gray-800 stroke-gray-300 dark:stroke-gray-600"} stroke-width="1"/>
+            <text x={80 + i * 50 + (ch.length > 1 ? 22 : 17)} y="171" text-anchor="middle" font-size="13" font-family="ui-monospace, monospace" class={ch.length > 1 ? "fill-purple-700 dark:fill-purple-300" : "fill-gray-800 dark:fill-gray-200"}>{ch === "_" ? "·" : ch}</text>
+          </g>
+        ))}
+        <text x="690" y="171" text-anchor="end" font-size="10" font-family="system-ui" class="fill-gray-400 dark:fill-gray-500">11 tokens</text>
+
+        {/* Arrow 3 */}
+        <line x1="350" y1="190" x2="350" y2="212" class="stroke-gray-300 dark:stroke-gray-600" stroke-width="1.5" marker-end="url(#arrow)"/>
+        <text x="370" y="206" font-size="10" font-family="system-ui" class="fill-gray-500 dark:fill-gray-400">…repeated ~100,000 times</text>
+
+        {/* Row 4: Final vocabulary tokens */}
+        <text x="16" y="240" font-size="11" font-family="system-ui" font-weight="600" class="fill-gray-500 dark:fill-gray-400">Final</text>
+        {["lower","_","low","_","newer"].map((ch, i) => (
+          <g key={`r4-${i}`}>
+            <rect x={80 + i * 100} y="222" width={ch === "_" ? 34 : ch.length * 12 + 20} height="32" rx="6" class={ch === "_" ? "fill-gray-100 dark:fill-gray-800 stroke-gray-300 dark:stroke-gray-600" : "fill-emerald-50 dark:fill-emerald-900/30 stroke-emerald-300 dark:stroke-emerald-700"} stroke-width="1"/>
+            <text x={80 + i * 100 + (ch === "_" ? 17 : (ch.length * 12 + 20) / 2)} y="243" text-anchor="middle" font-size="13" font-family="ui-monospace, monospace" class={ch === "_" ? "fill-gray-800 dark:fill-gray-200" : "fill-emerald-700 dark:fill-emerald-300"}>{ch === "_" ? "·" : ch}</text>
+          </g>
+        ))}
+        <text x="690" y="243" text-anchor="end" font-size="10" font-family="system-ui" class="fill-gray-400 dark:fill-gray-500">5 tokens</text>
+
+        {/* Arrow marker */}
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" class="fill-gray-400 dark:fill-gray-500"/>
+          </marker>
+        </defs>
+      </svg>
+    </div>
+  </div>
+</div>
+
+Common words like "the" end up as single tokens, ordinary words like "understanding" might be one or two tokens, and rare words get split into several pieces. The key insight is that the model never sees raw text — it sees a stream of integer IDs, one dimension, one token at a time.
+
+Now look at what tokenization actually does to a real sentence. Each coloured block is a single token — one symbol in the model's vocabulary:
+
+<div class="not-prose my-8">
+  <div class="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div class="px-5 py-2.5 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 font-sans text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Tokenization in practice</div>
+    <div class="px-4 py-6 sm:px-8 sm:py-8 space-y-6">
+      {/* Input text */}
+      <div>
+        <div class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">Raw text</div>
+        <p class="text-base font-mono text-gray-800 dark:text-gray-200">"The cat sat on the mat"</p>
+      </div>
+
+      <div class="flex items-center justify-center">
+        <span class="text-gray-400 dark:text-gray-500 text-lg">↓</span>
+        <span class="text-xs font-sans text-gray-400 dark:text-gray-500 ml-2">tokenizer</span>
+      </div>
+
+      {/* Tokenized output */}
+      <div>
+        <div class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3">Tokens — each block = 1 token</div>
+        <div class="flex flex-wrap gap-1.5">
+          <span class="px-2.5 py-1.5 rounded-md bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 font-mono text-sm">The</span>
+          <span class="px-2.5 py-1.5 rounded-md bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 font-mono text-sm">·cat</span>
+          <span class="px-2.5 py-1.5 rounded-md bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-200 font-mono text-sm">·sat</span>
+          <span class="px-2.5 py-1.5 rounded-md bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-200 font-mono text-sm">·on</span>
+          <span class="px-2.5 py-1.5 rounded-md bg-pink-100 dark:bg-pink-900/40 text-pink-800 dark:text-pink-200 font-mono text-sm">·the</span>
+          <span class="px-2.5 py-1.5 rounded-md bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200 font-mono text-sm">·mat</span>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-center">
+        <span class="text-gray-400 dark:text-gray-500 text-lg">↓</span>
+        <span class="text-xs font-sans text-gray-400 dark:text-gray-500 ml-2">vocabulary lookup</span>
+      </div>
+
+      {/* Integer IDs */}
+      <div>
+        <div class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3">Token IDs — what the model actually sees</div>
+        <div class="flex flex-wrap gap-1.5">
+          <span class="px-2.5 py-1.5 rounded-md bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 font-mono text-sm font-bold">791</span>
+          <span class="px-2.5 py-1.5 rounded-md bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 font-mono text-sm font-bold">4,879</span>
+          <span class="px-2.5 py-1.5 rounded-md bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-200 font-mono text-sm font-bold">9,107</span>
+          <span class="px-2.5 py-1.5 rounded-md bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-200 font-mono text-sm font-bold">389</span>
+          <span class="px-2.5 py-1.5 rounded-md bg-pink-100 dark:bg-pink-900/40 text-pink-800 dark:text-pink-200 font-mono text-sm font-bold">290</span>
+          <span class="px-2.5 py-1.5 rounded-md bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200 font-mono text-sm font-bold">7,108</span>
+        </div>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-3">The · represents a space. "The" and "·the" are different tokens — capitalisation matters. The model's entire input is this sequence of integers.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+You can explore this yourself with [Tiktokenizer](https://tiktokenizer.vercel.app/) — paste some text and watch how it splits. Try your name, some code, text in another language. You'll notice the tokenizer is opinionated: English prose is efficient (few tokens per word), while unusual strings burn through tokens fast.
+
+The transformer architecture — billions of parameters arranged in attention layers — then learns a single objective: **predict the next token**. Given the sequence of tokens so far, the model outputs a probability distribution over the entire vocabulary — a percentage chance for each of the ~100,000 possible next tokens.
+
+<div class="not-prose my-8">
+  <div class="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div class="px-5 py-2.5 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 font-sans text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Next-token prediction — probability distribution</div>
+    <div class="px-4 py-6 sm:px-8 sm:py-8">
+      <div class="mb-4">
+        <span class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Input:</span>
+        <span class="font-mono text-sm text-gray-800 dark:text-gray-200 ml-2">"The capital of France is"</span>
+        <span class="text-gray-400 dark:text-gray-500 ml-1">→ what comes next?</span>
+      </div>
+
+      <svg viewBox="0 0 700 200" class="w-full" aria-label="Bar chart showing probability distribution over next tokens. Paris has the highest probability at 62%, followed by the at 8%, a at 5%, located at 4%, and other tokens sharing the remaining probability.">
+        {/* Bars */}
+        <g>
+          {/* Paris */}
+          <rect x="60" y="10" width="310" height="28" rx="4" class="fill-emerald-400 dark:fill-emerald-500"/>
+          <text x="52" y="29" text-anchor="end" font-size="12" font-family="ui-monospace, monospace" font-weight="600" class="fill-emerald-700 dark:fill-emerald-300">Paris</text>
+          <text x="380" y="29" font-size="11" font-family="system-ui" font-weight="600" class="fill-emerald-700 dark:fill-emerald-300">62%</text>
+
+          {/* the */}
+          <rect x="60" y="46" width="40" height="28" rx="4" class="fill-blue-300 dark:fill-blue-500/70"/>
+          <text x="52" y="65" text-anchor="end" font-size="12" font-family="ui-monospace, monospace" class="fill-blue-700 dark:fill-blue-300">the</text>
+          <text x="108" y="65" font-size="11" font-family="system-ui" class="fill-blue-600 dark:fill-blue-400">8%</text>
+
+          {/* a */}
+          <rect x="60" y="82" width="25" height="28" rx="4" class="fill-blue-200 dark:fill-blue-600/50"/>
+          <text x="52" y="101" text-anchor="end" font-size="12" font-family="ui-monospace, monospace" class="fill-blue-700 dark:fill-blue-300">a</text>
+          <text x="93" y="101" font-size="11" font-family="system-ui" class="fill-blue-600 dark:fill-blue-400">5%</text>
+
+          {/* located */}
+          <rect x="60" y="118" width="20" height="28" rx="4" class="fill-blue-100 dark:fill-blue-700/40"/>
+          <text x="52" y="137" text-anchor="end" font-size="12" font-family="ui-monospace, monospace" class="fill-blue-700 dark:fill-blue-300">located</text>
+          <text x="88" y="137" font-size="11" font-family="system-ui" class="fill-blue-600 dark:fill-blue-400">4%</text>
+
+          {/* known */}
+          <rect x="60" y="154" width="15" height="28" rx="4" class="fill-gray-200 dark:fill-gray-600/50"/>
+          <text x="52" y="173" text-anchor="end" font-size="12" font-family="ui-monospace, monospace" class="fill-gray-600 dark:fill-gray-400">known</text>
+          <text x="83" y="173" font-size="11" font-family="system-ui" class="fill-gray-500 dark:fill-gray-400">3%</text>
+        </g>
+
+        {/* Annotation */}
+        <text x="420" y="60" font-size="11" font-family="system-ui" class="fill-gray-500 dark:fill-gray-400">← remaining 18% spread across</text>
+        <text x="432" y="76" font-size="11" font-family="system-ui" class="fill-gray-500 dark:fill-gray-400">~99,995 other tokens</text>
+      </svg>
+    </div>
+  </div>
+</div>
+
+The model samples from this distribution to pick the next token, then feeds it back in and repeats. This is all it does — token in, probability distribution out, sample, repeat. Training adjusts billions of parameters so these distributions get better and better at matching what actually comes next in real text. This runs over months on thousands of GPUs, processing trillions of tokens. The model sees no labels, no instructions, no notion of right or wrong. It just learns which tokens are likely to follow which other tokens.
 
 What you get at the end is a **base model** — essentially expensive autocomplete. It's a next-token probability machine, and nothing more.
 
