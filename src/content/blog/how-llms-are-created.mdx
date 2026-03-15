@@ -863,6 +863,35 @@ This isn't a bug that will be fixed in the next version. It's a structural conse
 
 The practical takeaway: **always cross-check**. Treat an LLM like a brilliant but unreliable colleague. Use it to draft, explore, brainstorm, and accelerate your work — but verify anything that matters. The moment you stop checking is the moment you'll get burned by a hallucination you didn't catch. These are tools that make you dramatically more productive *when you stay in the loop*. They're dangerous when you don't.
 
+### Force It to Use Tools — Don't Let It Guess
+
+Here's a concrete tip that follows directly from everything above: **when you need maths, counting, or any verifiable computation, tell the model to write and run code instead of reasoning about it.** The model's "intuition" for maths is just pattern-matching over tokens — and as we've seen with 9.11 vs 9.8, those patterns can be systematically wrong. But when you ask it to write Python and execute it, the *code* does the actual computation. The model is just the translator between your question and a program.
+
+<div class="not-prose my-8">
+  <div class="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div class="px-5 py-2.5 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 font-sans text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Prompting for tools — how to avoid hallucinated maths</div>
+    <div class="px-4 py-6 sm:px-8 sm:py-8 space-y-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-4">
+          <div class="text-xs font-bold text-red-600 dark:text-red-400 mb-2">Bad — letting it guess</div>
+          <p class="text-sm font-mono text-gray-700 dark:text-gray-300">"How many r's are in strawberry?"</p>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mt-2 italic">→ "There are 2 r's in strawberry."</p>
+          <p class="text-xs text-red-600 dark:text-red-400 mt-1 font-semibold">Token-level pattern matching. Wrong.</p>
+        </div>
+        <div class="rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 p-4">
+          <div class="text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-2">Good — forcing tool use</div>
+          <p class="text-sm font-mono text-gray-700 dark:text-gray-300">"Write Python to count the r's in 'strawberry' and run it."</p>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mt-2 italic">→ <code class="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">&#x22;strawberry&#x22;.count(&#x22;r&#x22;)</code> → <strong>3</strong></p>
+          <p class="text-xs text-emerald-600 dark:text-emerald-400 mt-1 font-semibold">Actual computation. Correct.</p>
+        </div>
+      </div>
+      <p class="text-xs text-gray-500 dark:text-gray-400">This works for any verifiable task: maths, date calculations, data analysis, string manipulation, unit conversions. The model is excellent at <em>writing</em> code — the code then does the actual work. You get the best of both: the model's translation ability and the computer's computational accuracy.</p>
+    </div>
+  </div>
+</div>
+
+The same principle applies more broadly. Need to compare numbers? Ask it to write code. Need to count words in a document? Code. Need financial calculations? Code. Anything where there's a deterministic right answer, don't let the model's probabilistic pattern-matching handle it — route it through a tool that computes the answer exactly. The model is the interface; the tool is the brain for that specific task.
+
 This is precisely why the remaining three training stages exist. SFT teaches models to say "I don't know" and to call tools (a calculator, a code interpreter) instead of guessing. RLHF punishes confident wrong answers. And RLVR, as we'll see, teaches the model to actually reason its way to verifiable answers.
 
 ---
