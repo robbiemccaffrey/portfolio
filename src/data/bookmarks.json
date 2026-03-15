@@ -1,0 +1,114 @@
+[
+  {
+    "title": "GPT-2 Paper",
+    "url": "https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf",
+    "description": "Language Models are Unsupervised Multitask Learners — the original GPT-2 paper that demonstrated large language models can perform downstream tasks without explicit supervision.",
+    "category": "LLM Fundamentals",
+    "type": "paper"
+  },
+  {
+    "title": "InstructGPT Paper",
+    "url": "https://arxiv.org/abs/2203.02155",
+    "description": "Training Language Models to Follow Instructions with Human Feedback — introduces RLHF to align language models with human intent.",
+    "category": "LLM Fundamentals",
+    "type": "paper"
+  },
+  {
+    "title": "DeepSeek-R1 Paper",
+    "url": "https://arxiv.org/abs/2501.12948",
+    "description": "Incentivizing Reasoning Capability in LLMs via Reinforcement Learning — demonstrates how RL can unlock chain-of-thought reasoning without supervised fine-tuning.",
+    "category": "LLM Fundamentals",
+    "type": "paper"
+  },
+  {
+    "title": "Llama 3 Paper",
+    "url": "https://arxiv.org/abs/2407.21783",
+    "description": "The Llama 3 Herd of Models — Meta's open-weight LLM family covering 8B to 405B parameters with multilingual and multimodal capabilities.",
+    "category": "LLM Fundamentals",
+    "type": "paper"
+  },
+  {
+    "title": "GPT-2 Source Code",
+    "url": "https://github.com/openai/gpt-2",
+    "description": "Official OpenAI repository containing the GPT-2 model code, weights, and encoding utilities.",
+    "category": "LLM Fundamentals",
+    "type": "repo"
+  },
+  {
+    "title": "Karpathy's LLM.c",
+    "url": "https://github.com/karpathy/llm.c/discussions/481",
+    "description": "Reproducing GPT-2 (124M) in llm.c in 90 minutes for $20 — Andrej Karpathy's deep dive into training LLMs from scratch in pure C.",
+    "category": "LLM Fundamentals",
+    "type": "repo"
+  },
+  {
+    "title": "UltraChat Dataset",
+    "url": "https://github.com/thunlp/UltraChat",
+    "description": "Large-scale multi-round instruction dialogue dataset with 1.5M conversations for training open-source chat models.",
+    "category": "LLM Fundamentals",
+    "type": "repo"
+  },
+  {
+    "title": "Deep Dive into LLMs like ChatGPT",
+    "url": "https://www.youtube.com/watch?v=7xTGNNLPyMI",
+    "description": "Andrej Karpathy's comprehensive walkthrough of how LLMs work — from tokenization and pretraining to RLHF and inference.",
+    "category": "LLM Fundamentals",
+    "type": "video"
+  },
+  {
+    "title": "Tiktokenizer",
+    "url": "https://tiktokenizer.vercel.app/",
+    "description": "Interactive tokenizer explorer — visualise how text is split into tokens by different OpenAI models in real time.",
+    "category": "LLM Tools & Visualizations",
+    "type": "tool"
+  },
+  {
+    "title": "LLM Visualization",
+    "url": "https://bbycroft.net/llm",
+    "description": "Interactive 3D visualisation of a neural network — walk through each layer of a transformer model step by step.",
+    "category": "LLM Tools & Visualizations",
+    "type": "tool"
+  },
+  {
+    "title": "Lambda AI",
+    "url": "https://lambda.ai/",
+    "description": "GPU cloud platform offering on-demand and reserved NVIDIA clusters for training and inference workloads.",
+    "category": "LLM Tools & Visualizations",
+    "type": "tool"
+  },
+  {
+    "title": "Model Context Protocol",
+    "url": "https://modelcontextprotocol.io/introduction",
+    "description": "Anthropic's open standard for connecting AI assistants to external tools, data sources, and APIs in a composable way.",
+    "category": "AI Agents",
+    "type": "article"
+  },
+  {
+    "title": "Writing Tools for Agents",
+    "url": "https://docs.anthropic.com/en/docs/build-with-claude/tool-use/overview",
+    "description": "Anthropic's guide to building tool-use capabilities for Claude — covers tool definitions, schemas, and best practices.",
+    "category": "AI Agents",
+    "type": "article"
+  },
+  {
+    "title": "Tau-Bench",
+    "url": "https://github.com/sierra-research/tau-bench",
+    "description": "Agent evaluation benchmark by Sierra Research — tests LLM agents on real-world tool-use tasks across retail and airline domains.",
+    "category": "AI Agents",
+    "type": "repo"
+  },
+  {
+    "title": "AI Agent Architecture — Practical Guide",
+    "url": "https://www.furmanets.com/blog/ai-agent-architecture-practical-guide",
+    "description": "Hands-on guide covering common agent design patterns including ReAct, plan-and-execute, and multi-agent orchestration.",
+    "category": "AI Agents",
+    "type": "article"
+  },
+  {
+    "title": "AI Agent Architecture — Redis Blog",
+    "url": "https://redis.io/blog/the-architecture-of-ai-agents/",
+    "description": "Overview of AI agent architecture patterns with a focus on memory, state management, and tool integration at scale.",
+    "category": "AI Agents",
+    "type": "article"
+  }
+]

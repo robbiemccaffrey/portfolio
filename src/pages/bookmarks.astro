@@ -1,0 +1,98 @@
+---
+import Layout from '../layouts/Layout.astro';
+import BookmarkCard from '../components/BookmarkCard.astro';
+import bookmarksRaw from '../data/bookmarks.json';
+
+type Bookmark = {
+  title: string;
+  url: string;
+  description: string;
+  category: string;
+  type: string;
+};
+
+const bookmarks = bookmarksRaw as Bookmark[];
+const categories = [...new Set(bookmarks.map((b) => b.category))];
+---
+
+<Layout
+  title="Bookmarks — Robert McCaffrey"
+  description="Curated AI/ML learning resources — papers, tools, repos, and articles on LLMs and AI agents."
+>
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+    <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-3">Bookmarks</h1>
+    <p class="text-lg text-gray-600 dark:text-gray-400 mb-10">
+      Curated AI/ML learning resources — papers, tools, and articles I find valuable.
+    </p>
+
+    <!-- Category filter -->
+    <div class="flex flex-wrap gap-2 mb-10" role="group" aria-label="Filter by category">
+      <button
+        class="cat-btn active px-3 py-1.5 text-xs font-semibold rounded-full border border-blue-500 bg-blue-500 text-white transition-colors"
+        data-category="all"
+      >
+        All
+      </button>
+      {categories.map((cat) => (
+        <button
+          class="cat-btn px-3 py-1.5 text-xs font-semibold rounded-full border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+          data-category={cat}
+        >
+          {cat}
+        </button>
+      ))}
+    </div>
+
+    <!-- Grid -->
+    <div id="bookmarks-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {bookmarks.map((bookmark) => (
+        <div class="bookmark-item" data-category={bookmark.category}>
+          <BookmarkCard
+            title={bookmark.title}
+            url={bookmark.url}
+            description={bookmark.description}
+            category={bookmark.category}
+            type={bookmark.type}
+          />
+        </div>
+      ))}
+    </div>
+
+    <p id="no-bookmarks" class="hidden text-center text-gray-500 dark:text-gray-400 py-16 text-sm">
+      No bookmarks match that filter.
+    </p>
+  </div>
+</Layout>
+
+<script>
+  const catBtns     = document.querySelectorAll<HTMLButtonElement>('.cat-btn');
+  const items       = document.querySelectorAll<HTMLElement>('.bookmark-item');
+  const noBookmarks = document.getElementById('no-bookmarks')!;
+  let activeCategory = 'all';
+
+  catBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      activeCategory = btn.dataset.category ?? 'all';
+
+      catBtns.forEach((b) => {
+        const on = b.dataset.category === activeCategory;
+        b.classList.toggle('bg-blue-500', on);
+        b.classList.toggle('text-white', on);
+        b.classList.toggle('border-blue-500', on);
+        b.classList.toggle('text-gray-600', !on);
+        b.classList.toggle('dark:text-gray-400', !on);
+        b.classList.toggle('border-gray-200', !on);
+        b.classList.toggle('dark:border-gray-700', !on);
+      });
+
+      let visible = 0;
+      items.forEach((el) => {
+        const cat = el.dataset.category ?? '';
+        const show = activeCategory === 'all' || cat === activeCategory;
+        el.style.display = show ? '' : 'none';
+        if (show) visible++;
+      });
+      noBookmarks.classList.toggle('hidden', visible > 0);
+    });
+  });
+</script>
