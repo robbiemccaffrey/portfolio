@@ -223,11 +223,226 @@ GPT-2 in 2019 cost roughly $40,000 to train. Karpathy later reproduced it for ab
 
 ---
 
+## Hallucinations — When Probability Beats Truth
+
+Before we move to the stages that fix the base model, it's worth understanding the most important consequence of next-token prediction: **hallucination**. Because the model doesn't "know" things — it predicts likely tokens — it can produce confident, fluent, completely wrong output. Some of the most famous examples reveal exactly how this works.
+
+### The Strawberry Problem
+
+Ask an LLM: *"How many r's are in the word strawberry?"* For a long time, models confidently answered **two**. The correct answer is three.
+
+<div class="not-prose my-8">
+  <div class="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div class="px-5 py-2.5 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 font-sans text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Why "strawberry" breaks LLMs</div>
+    <div class="px-4 py-6 sm:px-8 sm:py-8 space-y-6">
+      <div>
+        <div class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3">What you see</div>
+        <p class="text-2xl font-mono text-gray-800 dark:text-gray-200 tracking-wider">s t r a w b e r r y</p>
+      </div>
+      <div>
+        <div class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3">What the model sees</div>
+        <div class="flex flex-wrap gap-1.5">
+          <span class="px-2.5 py-1.5 rounded-md bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 font-mono text-sm">st</span>
+          <span class="px-2.5 py-1.5 rounded-md bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 font-mono text-sm">raw</span>
+          <span class="px-2.5 py-1.5 rounded-md bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-200 font-mono text-sm">berry</span>
+        </div>
+      </div>
+      <div class="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4">
+        <p class="text-sm text-red-800 dark:text-red-200"><strong>The model never sees individual letters.</strong> "strawberry" is split into tokens like "st", "raw", "berry" — and the r's are buried across token boundaries. The model can't count characters it doesn't have access to. It's not bad at counting — it literally can't see what it's being asked to count.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+This isn't a reasoning failure — it's an architectural one. The model operates on tokens, not characters. Asking it to count letters is like asking someone to count the bricks in a wall from a satellite photo. The resolution isn't there.
+
+### The 9.11 vs 9.8 Problem
+
+Ask an LLM: *"Which is larger, 9.11 or 9.8?"* Models frequently answer **9.11** — which is wrong. 9.8 is larger.
+
+<div class="not-prose my-8">
+  <div class="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div class="px-5 py-2.5 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 font-sans text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Why LLMs get 9.11 vs 9.8 wrong</div>
+    <div class="px-4 py-6 sm:px-8 sm:py-8 space-y-5">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-4">
+          <div class="text-xs font-semibold uppercase tracking-wider text-red-600 dark:text-red-400 mb-2">How the model "thinks"</div>
+          <p class="text-sm text-red-800 dark:text-red-200">9.11 has more digits after the decimal → 11 > 8 → therefore 9.11 > 9.8</p>
+          <p class="text-xs text-red-600 dark:text-red-400 mt-2 font-semibold">Wrong — treating decimals like version numbers</p>
+        </div>
+        <div class="rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 p-4">
+          <div class="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-2">Actual math</div>
+          <p class="text-sm text-emerald-800 dark:text-emerald-200">9.11 = 9 + 0.11<br/>9.8 = 9 + 0.80<br/>0.80 > 0.11 → 9.8 > 9.11</p>
+          <p class="text-xs text-emerald-600 dark:text-emerald-400 mt-2 font-semibold">Correct — comparing decimal values</p>
+        </div>
+      </div>
+      <p class="text-sm text-gray-600 dark:text-gray-400">The model has seen "9.11" thousands of times in its training data — mostly referring to <strong>September 11th</strong>, not the number nine-point-one-one. Its statistical associations with "9.11" are dominated by a date, not a decimal. It's also seen version numbers (Python 3.11 > 3.8) where more digits after the dot <em>does</em> mean larger. The model isn't doing maths — it's pattern-matching, and the patterns point the wrong way.</p>
+    </div>
+  </div>
+</div>
+
+### The Bible Verse Problem
+
+A related variant: *"Is 9.11 greater than 9.8?"* Some models answer yes, then justify it by citing that "Luke 9:11 comes after Luke 9:8 in the Bible." The model isn't joking — it has genuinely found a statistical pattern where 9.11 follows 9.8 (Bible verse ordering), and it's using that as evidence for a numerical comparison. This is hallucination at its most revealing: the model found a pattern that is *internally consistent* with its training data but completely wrong for the question being asked.
+
+<div class="not-prose my-8">
+  <div class="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div class="px-5 py-2.5 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 font-sans text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">The pattern — why the model is "confidently wrong"</div>
+    <div class="px-4 py-6 sm:px-8 sm:py-8">
+      <svg viewBox="0 0 700 180" class="w-full" aria-label="Diagram showing three contexts where 9.11 appears to be greater than 9.8: Bible verses, software versions, and dates — all misleading the model for numerical comparison.">
+        {/* Header */}
+        <text x="350" y="20" text-anchor="middle" font-size="12" font-family="system-ui" font-weight="600" class="fill-gray-700 dark:fill-gray-300">Training data contexts for "9.11" and "9.8"</text>
+
+        {/* Bible */}
+        <rect x="20" y="40" width="200" height="85" rx="10" class="fill-amber-50 dark:fill-amber-900/20 stroke-amber-300 dark:stroke-amber-700" stroke-width="1.5"/>
+        <text x="120" y="62" text-anchor="middle" font-size="11" font-family="system-ui" font-weight="600" class="fill-amber-700 dark:fill-amber-300">Bible verses</text>
+        <text x="120" y="82" text-anchor="middle" font-size="10" font-family="ui-monospace, monospace" class="fill-amber-800 dark:fill-amber-200">Luke 9:8 ... Luke 9:11</text>
+        <text x="120" y="98" text-anchor="middle" font-size="10" font-family="system-ui" class="fill-amber-600 dark:fill-amber-400">9:11 comes after 9:8</text>
+        <text x="120" y="116" text-anchor="middle" font-size="11" font-family="system-ui" font-weight="700" class="fill-amber-700 dark:fill-amber-300">→ "9.11 > 9.8"</text>
+
+        {/* Versions */}
+        <rect x="250" y="40" width="200" height="85" rx="10" class="fill-blue-50 dark:fill-blue-900/20 stroke-blue-300 dark:stroke-blue-700" stroke-width="1.5"/>
+        <text x="350" y="62" text-anchor="middle" font-size="11" font-family="system-ui" font-weight="600" class="fill-blue-700 dark:fill-blue-300">Software versions</text>
+        <text x="350" y="82" text-anchor="middle" font-size="10" font-family="ui-monospace, monospace" class="fill-blue-800 dark:fill-blue-200">Python 3.8 → 3.11</text>
+        <text x="350" y="98" text-anchor="middle" font-size="10" font-family="system-ui" class="fill-blue-600 dark:fill-blue-400">3.11 is newer than 3.8</text>
+        <text x="350" y="116" text-anchor="middle" font-size="11" font-family="system-ui" font-weight="700" class="fill-blue-700 dark:fill-blue-300">→ "9.11 > 9.8"</text>
+
+        {/* Dates */}
+        <rect x="480" y="40" width="200" height="85" rx="10" class="fill-purple-50 dark:fill-purple-900/20 stroke-purple-300 dark:stroke-purple-700" stroke-width="1.5"/>
+        <text x="580" y="62" text-anchor="middle" font-size="11" font-family="system-ui" font-weight="600" class="fill-purple-700 dark:fill-purple-300">Dates</text>
+        <text x="580" y="82" text-anchor="middle" font-size="10" font-family="ui-monospace, monospace" class="fill-purple-800 dark:fill-purple-200">Sept 8 → Sept 11</text>
+        <text x="580" y="98" text-anchor="middle" font-size="10" font-family="system-ui" class="fill-purple-600 dark:fill-purple-400">9/11 comes after 9/8</text>
+        <text x="580" y="116" text-anchor="middle" font-size="11" font-family="system-ui" font-weight="700" class="fill-purple-700 dark:fill-purple-300">→ "9.11 > 9.8"</text>
+
+        {/* Bottom conclusion */}
+        <text x="350" y="155" text-anchor="middle" font-size="11" font-family="system-ui" class="fill-red-600 dark:fill-red-400">All three patterns reinforce the wrong answer. The model has almost no training data</text>
+        <text x="350" y="172" text-anchor="middle" font-size="11" font-family="system-ui" class="fill-red-600 dark:fill-red-400">where "9.11" and "9.8" are compared as decimal numbers — because humans rarely write that comparison.</text>
+      </svg>
+    </div>
+  </div>
+</div>
+
+### Why This Matters
+
+These aren't edge cases — they reveal the fundamental nature of the system. An LLM doesn't do maths, count letters, or reason from first principles. It predicts the most likely next token based on patterns in its training data. When those patterns happen to align with truth (which is most of the time), the model looks intelligent. When they don't, it produces fluent, confident nonsense.
+
+This is precisely why the remaining three training stages exist. SFT teaches models to say "I don't know" and to call tools (a calculator, a code interpreter) instead of guessing. RLHF punishes confident wrong answers. And RLVR, as we'll see, teaches the model to actually reason its way to verifiable answers.
+
+---
+
 ## Stage 2: Supervised Fine-Tuning — Learning to Be Helpful
 
 As we saw, the base model doesn't know it's supposed to be an assistant. It just predicts the next token. Supervised fine-tuning (SFT) fixes this by training the model on curated datasets of conversations — human-written examples of what a good assistant response looks like.
 
-These datasets come from two sources. Human-curated collections like [OASST1](https://huggingface.co/datasets/OpenAssistant/oasst1) contain thousands of real conversations written by annotators. Synthetic datasets like [UltraChat](https://github.com/thunlp/UltraChat) scale this up to 1.5 million conversations generated by models and filtered for quality. Special tokens structure these conversations — markers like `<|im_start|>` and `<|im_end|>` tell the model where system prompts, user messages, and assistant responses begin and end. The model learns the rhythm of a conversation, not just the rhythm of text.
+These datasets come from two sources. Human-curated collections like [OASST1](https://huggingface.co/datasets/OpenAssistant/oasst1) contain thousands of real conversations written by annotators. Synthetic datasets like [UltraChat](https://github.com/thunlp/UltraChat) scale this up to 1.5 million conversations generated by models and filtered for quality.
+
+### Special Tokens — Teaching the Model Its Role
+
+The key mechanism is **special tokens**. The raw training data for SFT isn't just plain text — it's structured with markers that tell the model who's speaking and when each turn starts and ends. These tokens don't appear in normal text. They're added to the vocabulary specifically for conversations.
+
+<div class="not-prose my-8">
+  <div class="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div class="px-5 py-2.5 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 font-sans text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">SFT training data — what the model actually sees</div>
+    <div class="px-4 py-6 sm:px-8 sm:py-8 font-mono text-sm space-y-0 leading-relaxed">
+      <div class="flex items-start gap-2">
+        <span class="px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 text-xs font-bold whitespace-nowrap shrink-0">special</span>
+        <span class="text-purple-600 dark:text-purple-400">&lt;|im_start|&gt;system</span>
+      </div>
+      <div class="pl-16 text-gray-600 dark:text-gray-400 py-1">You are a helpful assistant.<br/>You answer questions accurately and concisely.</div>
+      <div class="flex items-start gap-2">
+        <span class="px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 text-xs font-bold whitespace-nowrap shrink-0">special</span>
+        <span class="text-purple-600 dark:text-purple-400">&lt;|im_end|&gt;</span>
+      </div>
+      <div class="h-2"></div>
+      <div class="flex items-start gap-2">
+        <span class="px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-xs font-bold whitespace-nowrap shrink-0">special</span>
+        <span class="text-blue-600 dark:text-blue-400">&lt;|im_start|&gt;user</span>
+      </div>
+      <div class="pl-16 text-gray-800 dark:text-gray-200 py-1">What causes the northern lights?</div>
+      <div class="flex items-start gap-2">
+        <span class="px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-xs font-bold whitespace-nowrap shrink-0">special</span>
+        <span class="text-blue-600 dark:text-blue-400">&lt;|im_end|&gt;</span>
+      </div>
+      <div class="h-2"></div>
+      <div class="flex items-start gap-2">
+        <span class="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 text-xs font-bold whitespace-nowrap shrink-0">special</span>
+        <span class="text-emerald-600 dark:text-emerald-400">&lt;|im_start|&gt;assistant</span>
+      </div>
+      <div class="pl-16 text-gray-800 dark:text-gray-200 py-1">The northern lights (aurora borealis) are caused by charged particles from the sun colliding with gases in Earth's atmosphere...</div>
+      <div class="flex items-start gap-2">
+        <span class="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 text-xs font-bold whitespace-nowrap shrink-0">special</span>
+        <span class="text-emerald-600 dark:text-emerald-400">&lt;|im_end|&gt;</span>
+      </div>
+    </div>
+    <div class="px-5 py-3 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400">
+      The purple tokens don't exist in normal text — they're added to the vocabulary specifically for SFT. The model learns: when I see <code class="text-xs">&lt;|im_start|&gt;assistant</code>, I should produce a helpful response until <code class="text-xs">&lt;|im_end|&gt;</code>.
+    </div>
+  </div>
+</div>
+
+After thousands of these examples, the model internalises the pattern: when special tokens indicate it's the assistant's turn, it should provide a helpful, accurate response. The special tokens are the mechanism — they give the model a structured "role" within a conversation.
+
+### Tool Use — Learning to Call Experts
+
+SFT also teaches the model to use **tools**. The training data includes examples where the assistant, instead of guessing, calls an external system — a search engine, a calculator, a code interpreter — and uses the result in its response.
+
+<div class="not-prose my-8">
+  <div class="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div class="px-5 py-2.5 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 font-sans text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Tool use — learned from SFT examples</div>
+    <div class="px-4 py-6 sm:px-8 sm:py-8">
+      <svg viewBox="0 0 700 240" class="w-full" aria-label="Diagram showing how a model learns to call tools during SFT: user asks a question, model calls a search tool instead of guessing, then uses the result to form an accurate answer.">
+        {/* User question */}
+        <rect x="10" y="10" width="200" height="50" rx="10" class="fill-blue-50 dark:fill-blue-900/30 stroke-blue-300 dark:stroke-blue-700" stroke-width="1.5"/>
+        <text x="110" y="30" text-anchor="middle" class="fill-blue-600 dark:fill-blue-400" font-size="10" font-family="system-ui" font-weight="600">USER</text>
+        <text x="110" y="46" text-anchor="middle" class="fill-blue-800 dark:fill-blue-200" font-size="11" font-family="system-ui">"Who won the 2024 Super Bowl?"</text>
+
+        {/* Arrow to model */}
+        <line x1="210" y1="35" x2="260" y2="35" class="stroke-gray-300 dark:stroke-gray-600" stroke-width="1.5" marker-end="url(#arrow2)"/>
+
+        {/* Model decides */}
+        <rect x="260" y="10" width="160" height="50" rx="10" class="fill-gray-100 dark:fill-gray-800 stroke-gray-300 dark:stroke-gray-600" stroke-width="1.5"/>
+        <text x="340" y="30" text-anchor="middle" class="fill-gray-500 dark:fill-gray-400" font-size="10" font-family="system-ui" font-weight="600">MODEL THINKS</text>
+        <text x="340" y="46" text-anchor="middle" class="fill-gray-700 dark:fill-gray-300" font-size="11" font-family="system-ui">"I should search for this"</text>
+
+        {/* Arrow down to tool call */}
+        <line x1="340" y1="60" x2="340" y2="90" class="stroke-gray-300 dark:stroke-gray-600" stroke-width="1.5" marker-end="url(#arrow2)"/>
+
+        {/* Tool call */}
+        <rect x="240" y="90" width="200" height="50" rx="10" class="fill-orange-50 dark:fill-orange-900/30 stroke-orange-300 dark:stroke-orange-700" stroke-width="1.5"/>
+        <text x="340" y="110" text-anchor="middle" class="fill-orange-600 dark:fill-orange-400" font-size="10" font-family="system-ui" font-weight="600">TOOL CALL</text>
+        <text x="340" y="126" text-anchor="middle" class="fill-orange-800 dark:fill-orange-200" font-size="10" font-family="ui-monospace, monospace">search("2024 Super Bowl winner")</text>
+
+        {/* Arrow to tool result */}
+        <line x1="440" y1="115" x2="490" y2="115" class="stroke-gray-300 dark:stroke-gray-600" stroke-width="1.5" marker-end="url(#arrow2)"/>
+
+        {/* Tool result */}
+        <rect x="490" y="90" width="200" height="50" rx="10" class="fill-yellow-50 dark:fill-yellow-900/30 stroke-yellow-300 dark:stroke-yellow-700" stroke-width="1.5"/>
+        <text x="590" y="110" text-anchor="middle" class="fill-yellow-600 dark:fill-yellow-400" font-size="10" font-family="system-ui" font-weight="600">TOOL RESULT</text>
+        <text x="590" y="126" text-anchor="middle" class="fill-yellow-800 dark:fill-yellow-200" font-size="11" font-family="system-ui">"Kansas City Chiefs defeated..."</text>
+
+        {/* Arrow down to response */}
+        <line x1="500" y1="140" x2="400" y2="175" class="stroke-gray-300 dark:stroke-gray-600" stroke-width="1.5" marker-end="url(#arrow2)"/>
+
+        {/* Final response */}
+        <rect x="200" y="170" width="300" height="55" rx="10" class="fill-emerald-50 dark:fill-emerald-900/30 stroke-emerald-300 dark:stroke-emerald-700" stroke-width="1.5"/>
+        <text x="350" y="190" text-anchor="middle" class="fill-emerald-600 dark:fill-emerald-400" font-size="10" font-family="system-ui" font-weight="600">ASSISTANT RESPONSE</text>
+        <text x="350" y="210" text-anchor="middle" class="fill-emerald-800 dark:fill-emerald-200" font-size="11" font-family="system-ui">"The Kansas City Chiefs won Super Bowl LVIII,</text>
+        <text x="350" y="222" text-anchor="middle" class="fill-emerald-800 dark:fill-emerald-200" font-size="11" font-family="system-ui">defeating the San Francisco 49ers 25–22."</text>
+
+        <defs>
+          <marker id="arrow2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" class="fill-gray-400 dark:fill-gray-500"/>
+          </marker>
+        </defs>
+      </svg>
+    </div>
+    <div class="px-5 py-3 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400">
+      The model wasn't born knowing how to call tools. It learned this pattern from SFT training examples that demonstrated: <strong>when unsure, call an expert instead of guessing.</strong>
+    </div>
+  </div>
+</div>
+
+This is a crucial capability. The base model would have either guessed (potentially wrong) or hallucinated a confident-sounding answer. The SFT-trained model has learned a different pattern from its training data: recognise when you don't know something, call the right tool, and use verified information to respond. Search, code execution, calculators — the model learns when to reach for each one.
 
 The effect is striking. Take our earlier example:
 
