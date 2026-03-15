@@ -91,6 +91,13 @@
     "type": "tool"
   },
   {
+    "title": "AI News by smol.ai",
+    "url": "https://news.smol.ai/",
+    "description": "Daily AI news digest curating top discussions from Discord, Reddit, and X — delivered to 150k+ subscribers with a searchable archive.",
+    "category": "LLM Tools & Visualizations",
+    "type": "tool"
+  },
+  {
     "title": "Arena AI Leaderboard",
     "url": "https://arena.ai/leaderboard",
     "description": "Community-driven platform ranking AI models across text, code, vision, and generative tasks via side-by-side comparisons and user votes.",
