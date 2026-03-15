@@ -24,6 +24,73 @@ The scale is staggering. Datasets like [FineWeb](https://huggingface.co/datasets
 
 It's worth noting how much smarter data curation has become. When GPT-2 was trained in 2019, the approach to data was relatively crude — scrape a lot of the web and do basic filtering. ChatGPT launched in late 2022 on a much larger but still imperfect dataset. Since then, the industry has learned that **data quality matters as much as data quantity**. Modern pretraining pipelines use aggressive deduplication (near-duplicate detection at scale), quality classifiers trained to score every page, toxicity and PII filters, domain-specific heuristics (is this machine-generated spam?), and careful balancing across domains — more code, more scientific text, less SEO content. FineWeb, for example, starts from 96 billion web pages and filters down to roughly 15 billion high-quality pages. The same model architecture trained on better-curated data produces a meaningfully smarter base model. Data curation has become one of the most important — and least visible — competitive advantages in AI.
 
+### Neural Networks — A Quick Primer
+
+Before diving into tokenization and transformers, it's worth briefly covering what a neural network actually is — since everything that follows is built on top of one.
+
+A neural network is a mathematical function loosely inspired by the brain. It's made of layers of **neurons** — each neuron takes some numbers as input, multiplies them by **weights** (learnable parameters), adds them up, and passes the result through an activation function. Stack millions of these neurons in layers, and you get a system that can learn complex patterns from data.
+
+<div class="not-prose my-8">
+  <div class="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div class="px-5 py-2.5 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 font-sans text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Neural network — simplified</div>
+    <div class="px-4 py-6 sm:px-8 sm:py-8">
+      <svg viewBox="0 0 700 200" class="w-full" aria-label="Simplified diagram of a neural network with an input layer, two hidden layers, and an output layer. Neurons are connected by weighted edges.">
+        {/* Input layer */}
+        <text x="80" y="15" text-anchor="middle" font-size="10" font-family="system-ui" font-weight="600" class="fill-blue-600 dark:fill-blue-400">Input</text>
+        {[50, 90, 130].map((y, i) => (
+          <circle key={`i-${i}`} cx="80" cy={y + 25} r="14" class="fill-blue-100 dark:fill-blue-900/40 stroke-blue-400 dark:stroke-blue-600" stroke-width="1.5"/>
+        ))}
+
+        {/* Hidden layer 1 */}
+        <text x="270" y="15" text-anchor="middle" font-size="10" font-family="system-ui" font-weight="600" class="fill-purple-600 dark:fill-purple-400">Hidden layer 1</text>
+        {[40, 80, 120, 160].map((y, i) => (
+          <circle key={`h1-${i}`} cx="270" cy={y + 20} r="14" class="fill-purple-100 dark:fill-purple-900/40 stroke-purple-400 dark:stroke-purple-600" stroke-width="1.5"/>
+        ))}
+
+        {/* Hidden layer 2 */}
+        <text x="460" y="15" text-anchor="middle" font-size="10" font-family="system-ui" font-weight="600" class="fill-purple-600 dark:fill-purple-400">Hidden layer 2</text>
+        {[40, 80, 120, 160].map((y, i) => (
+          <circle key={`h2-${i}`} cx="460" cy={y + 20} r="14" class="fill-purple-100 dark:fill-purple-900/40 stroke-purple-400 dark:stroke-purple-600" stroke-width="1.5"/>
+        ))}
+
+        {/* Output layer */}
+        <text x="620" y="15" text-anchor="middle" font-size="10" font-family="system-ui" font-weight="600" class="fill-emerald-600 dark:fill-emerald-400">Output</text>
+        {[70, 120].map((y, i) => (
+          <circle key={`o-${i}`} cx="620" cy={y + 15} r="14" class="fill-emerald-100 dark:fill-emerald-900/40 stroke-emerald-400 dark:stroke-emerald-600" stroke-width="1.5"/>
+        ))}
+
+        {/* Connections input → hidden 1 */}
+        {[75, 115, 155].map((iy) =>
+          [60, 100, 140, 180].map((hy, j) => (
+            <line key={`ih-${iy}-${j}`} x1="94" y1={iy} x2="256" y2={hy} class="stroke-gray-200 dark:stroke-gray-700" stroke-width="0.5"/>
+          ))
+        )}
+
+        {/* Connections hidden 1 → hidden 2 */}
+        {[60, 100, 140, 180].map((hy) =>
+          [60, 100, 140, 180].map((h2y, j) => (
+            <line key={`hh-${hy}-${j}`} x1="284" y1={hy} x2="446" y2={h2y} class="stroke-gray-200 dark:stroke-gray-700" stroke-width="0.5"/>
+          ))
+        )}
+
+        {/* Connections hidden 2 → output */}
+        {[60, 100, 140, 180].map((hy) =>
+          [85, 135].map((oy, j) => (
+            <line key={`ho-${hy}-${j}`} x1="474" y1={hy} x2="606" y2={oy} class="stroke-gray-200 dark:stroke-gray-700" stroke-width="0.5"/>
+          ))
+        )}
+      </svg>
+    </div>
+    <div class="px-5 py-3 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400">
+      Each line is a <strong>weight</strong> — a number the network adjusts during training. GPT-4 has hundreds of billions of these. "Training" means finding the weight values that make the network's predictions match reality.
+    </div>
+  </div>
+</div>
+
+Training works by showing the network examples, measuring how wrong its predictions are (the **loss**), and nudging all the weights slightly in the direction that reduces the error. Do this billions of times across trillions of examples, and the weights converge on values that make the network remarkably good at its task. The key insight: nobody programs the rules. The network discovers them from the data.
+
+A **transformer** is a specific type of neural network architecture, introduced in the 2017 paper ["Attention Is All You Need"](https://arxiv.org/abs/1706.03762). What makes transformers special is the **attention mechanism** — the ability to look at all previous tokens simultaneously and decide which ones are relevant for predicting the next one. Previous architectures (RNNs, LSTMs) processed tokens sequentially, like reading one word at a time and trying to remember. Transformers can look at the whole sentence at once. This is what made them scale — and it's why every modern LLM is built on them.
+
 Before any of this learning can happen, text needs to be converted into something a neural network can process. Raw text is a one-dimensional sequence of characters — just a long string. **Tokenization** converts this string into a sequence of symbols from a fixed vocabulary using Byte Pair Encoding (BPE). The algorithm starts with individual characters, then repeatedly merges the most frequent adjacent pairs into new tokens. After enough merges, you get a vocabulary — GPT-4's is roughly 100,000 tokens.
 
 Here's how BPE builds up its vocabulary. It starts with single characters and iteratively merges the most common pairs:
@@ -619,7 +686,13 @@ In his [2025 LLM Year in Review](https://karpathy.bearblog.dev/year-in-review-20
 
 The key insight: for tasks with **verifiable answers** — math problems, coding challenges, logic puzzles — you don't need humans in the loop at all. The model generates an attempt, an automated verifier checks whether the answer is correct, and reinforcement learning optimises toward correct solutions. No human annotators. No imperfect reward models. Just a binary signal: right or wrong.
 
-What makes RLVR remarkable isn't the mechanism — it's what emerges. Models trained with RLVR spontaneously develop reasoning strategies that nobody explicitly taught them. They start breaking problems into steps. They self-correct mid-reasoning. They explore alternative approaches when their first attempt fails. These behaviours weren't in the training data and weren't programmed — they emerged because the reward signal (correctness) incentivised whatever internal strategies produced right answers. The [DeepSeek-R1 paper](https://arxiv.org/abs/2501.12948) demonstrates this emergence clearly.
+### DeepSeek-R1 — When the Secret Got Out
+
+What makes RLVR remarkable isn't the mechanism — it's what emerges. Models trained with RLVR spontaneously develop reasoning strategies that nobody explicitly taught them. They start breaking problems into steps. They self-correct mid-reasoning. They explore alternative approaches when their first attempt fails. These behaviours weren't in the training data and weren't programmed — they emerged because the reward signal (correctness) incentivised whatever internal strategies produced right answers.
+
+For years, the specifics of how RL was applied to language models were closely guarded. OpenAI's o1 model demonstrated remarkable reasoning capabilities but the company published almost nothing about how it was trained — no paper, no technical details, just the product. The techniques were widely assumed to exist but remained behind closed doors at a handful of well-funded labs.
+
+Then, in January 2025, DeepSeek — a Chinese AI lab — published the [DeepSeek-R1 paper](https://arxiv.org/abs/2501.12948) and open-sourced the model weights. The paper laid out the full recipe: start with a base model, apply RLVR with verifiable rewards on maths and code, and watch reasoning emerge spontaneously. They showed the model developing chain-of-thought reasoning, self-verification, and backtracking — all without being explicitly trained on any of these strategies. Crucially, they published it all. The paper was a watershed moment: it demonstrated that RLVR wasn't some proprietary magic — it was a technique any sufficiently resourced team could replicate. It also showed that a relatively modest lab could produce reasoning capabilities competitive with models from labs spending orders of magnitude more. The genie was out of the bottle.
 
 There's a direct parallel to [AlphaGo](https://www.youtube.com/watch?v=WXuK6gekU1Y). In its match against Lee Sedol, AlphaGo played Move 37 — a move no human Go player would have considered, discovered purely through self-play against a verifiable objective (winning the game). RLVR enables the same kind of emergent innovation in language. The model isn't constrained to strategies humans demonstrated — it discovers what works.
 
