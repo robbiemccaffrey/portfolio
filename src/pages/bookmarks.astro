@@ -61,6 +61,147 @@ const categories = [...new Set(bookmarks.map((b) => b.category))];
     <p id="no-bookmarks" class="hidden text-center text-gray-500 dark:text-gray-400 py-16 text-sm">
       No bookmarks match that filter.
     </p>
+
+    <!-- Learning Path -->
+    <div class="mt-20 pt-16 border-t border-gray-200 dark:border-gray-800">
+      <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-3">Suggested Learning Path</h2>
+      <p class="text-lg text-gray-600 dark:text-gray-400 mb-12">
+        A structured way to work through these resources, from first principles to building agents.
+      </p>
+
+      <div class="relative">
+        <!-- Vertical timeline line -->
+        <div class="absolute left-4 md:left-6 top-0 bottom-0 w-px bg-gray-200 dark:bg-gray-800" aria-hidden="true"></div>
+
+        <div class="space-y-12">
+          <!-- Stage 1 -->
+          <div class="relative pl-12 md:pl-16">
+            <div class="absolute left-0 md:left-2 top-1 flex items-center justify-center w-8 h-8 rounded-full bg-blue-500 text-white text-sm font-bold shadow-sm">1</div>
+            <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">The Big Picture</h3>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Get inspired and build intuition before diving into papers.</p>
+            <ol class="space-y-2">
+              <li class="text-sm text-gray-700 dark:text-gray-300">
+                <a href="https://www.youtube.com/watch?v=WXuK6gekU1Y" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">AlphaGo — The Movie</a> — the documentary that made the world pay attention to AI
+              </li>
+              <li class="text-sm text-gray-700 dark:text-gray-300">
+                <a href="https://www.youtube.com/watch?v=7xTGNNLPyMI" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">Deep Dive into LLMs like ChatGPT</a> — Karpathy's end-to-end explainer, the single best intro
+              </li>
+              <li class="text-sm text-gray-700 dark:text-gray-300">
+                <a href="https://bbycroft.net/llm" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">LLM Visualization</a> — walk through a transformer layer by layer in 3D
+              </li>
+              <li class="text-sm text-gray-700 dark:text-gray-300">
+                <a href="https://tiktokenizer.vercel.app/" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">Tiktokenizer</a> — play with tokenization to see how models actually "read" text
+              </li>
+            </ol>
+          </div>
+
+          <!-- Stage 2 -->
+          <div class="relative pl-12 md:pl-16">
+            <div class="absolute left-0 md:left-2 top-1 flex items-center justify-center w-8 h-8 rounded-full bg-blue-500 text-white text-sm font-bold shadow-sm">2</div>
+            <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">Foundational Papers</h3>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Read in chronological order to see how the field evolved.</p>
+            <ol class="space-y-2">
+              <li class="text-sm text-gray-700 dark:text-gray-300">
+                <a href="https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">GPT-2 Paper</a> — where modern LLMs started: unsupervised multitask learning
+              </li>
+              <li class="text-sm text-gray-700 dark:text-gray-300">
+                <a href="https://github.com/openai/gpt-2" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">GPT-2 Source Code</a> — read the actual implementation alongside the paper
+              </li>
+              <li class="text-sm text-gray-700 dark:text-gray-300">
+                <a href="https://github.com/karpathy/llm.c/discussions/481" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">Karpathy's LLM.c</a> — reproduce GPT-2 from scratch to really understand it
+              </li>
+              <li class="text-sm text-gray-700 dark:text-gray-300">
+                <a href="https://arxiv.org/abs/2203.02155" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">InstructGPT Paper</a> — the RLHF breakthrough that made LLMs useful for chat
+              </li>
+              <li class="text-sm text-gray-700 dark:text-gray-300">
+                <a href="https://github.com/thunlp/UltraChat" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">UltraChat Dataset</a> — see what large-scale instruction data actually looks like
+              </li>
+            </ol>
+          </div>
+
+          <!-- Stage 3 -->
+          <div class="relative pl-12 md:pl-16">
+            <div class="absolute left-0 md:left-2 top-1 flex items-center justify-center w-8 h-8 rounded-full bg-blue-500 text-white text-sm font-bold shadow-sm">3</div>
+            <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">Scaling & Reasoning</h3>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">How models got bigger, smarter, and learned to think.</p>
+            <ol class="space-y-2">
+              <li class="text-sm text-gray-700 dark:text-gray-300">
+                <a href="https://arxiv.org/abs/2407.21783" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">Llama 3 Paper</a> — open-weight models at scale (8B to 405B)
+              </li>
+              <li class="text-sm text-gray-700 dark:text-gray-300">
+                <a href="https://arxiv.org/abs/2501.12948" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">DeepSeek-R1 Paper</a> — RL for chain-of-thought reasoning
+              </li>
+              <li class="text-sm text-gray-700 dark:text-gray-300">
+                <a href="https://arxiv.org/abs/2506.14245" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">RLVR Incentivizes Correct Reasoning</a> — why verifiable rewards lead to correct reasoning
+              </li>
+              <li class="text-sm text-gray-700 dark:text-gray-300">
+                <a href="https://arxiv.org/abs/2601.03306" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">QZero — Mastering Go without Search</a> — model-free RL pushing the boundary
+              </li>
+            </ol>
+          </div>
+
+          <!-- Stage 4 -->
+          <div class="relative pl-12 md:pl-16">
+            <div class="absolute left-0 md:left-2 top-1 flex items-center justify-center w-8 h-8 rounded-full bg-blue-500 text-white text-sm font-bold shadow-sm">4</div>
+            <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">Interpretability & State of the Art</h3>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Understanding what's happening inside the models.</p>
+            <ol class="space-y-2">
+              <li class="text-sm text-gray-700 dark:text-gray-300">
+                <a href="https://transformer-circuits.pub/2025/attribution-graphs/biology.html" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">On the Biology of a Large Language Model</a> — Anthropic's circuit tracing, seeing inside the model
+              </li>
+              <li class="text-sm text-gray-700 dark:text-gray-300">
+                <a href="https://karpathy.bearblog.dev/year-in-review-2025/" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">2025 LLM Year in Review — Karpathy</a> — where everything stands now
+              </li>
+            </ol>
+          </div>
+
+          <!-- Stage 5 -->
+          <div class="relative pl-12 md:pl-16">
+            <div class="absolute left-0 md:left-2 top-1 flex items-center justify-center w-8 h-8 rounded-full bg-blue-500 text-white text-sm font-bold shadow-sm">5</div>
+            <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">Tools of the Trade</h3>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Set up your own environment and stay current.</p>
+            <ol class="space-y-2">
+              <li class="text-sm text-gray-700 dark:text-gray-300">
+                <a href="https://lmstudio.ai/" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">LM Studio</a> — run models locally on your machine
+              </li>
+              <li class="text-sm text-gray-700 dark:text-gray-300">
+                <a href="https://arena.ai/leaderboard" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">Arena AI Leaderboard</a> — compare model capabilities side by side
+              </li>
+              <li class="text-sm text-gray-700 dark:text-gray-300">
+                <a href="https://lambda.ai/" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">Lambda AI</a> — GPU cloud when you need scale
+              </li>
+              <li class="text-sm text-gray-700 dark:text-gray-300">
+                <a href="https://news.smol.ai/" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">AI News by smol.ai</a> — stay current with daily digests
+              </li>
+            </ol>
+          </div>
+
+          <!-- Stage 6 -->
+          <div class="relative pl-12 md:pl-16">
+            <div class="absolute left-0 md:left-2 top-1 flex items-center justify-center w-8 h-8 rounded-full bg-blue-500 text-white text-sm font-bold shadow-sm">6</div>
+            <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">Building Agents</h3>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Apply everything to build real systems.</p>
+            <ol class="space-y-2">
+              <li class="text-sm text-gray-700 dark:text-gray-300">
+                <a href="https://modelcontextprotocol.io/introduction" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">Model Context Protocol</a> — the standard for connecting agents to tools
+              </li>
+              <li class="text-sm text-gray-700 dark:text-gray-300">
+                <a href="https://docs.anthropic.com/en/docs/build-with-claude/tool-use/overview" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">Writing Tools for Agents</a> — hands-on guide for tool-use
+              </li>
+              <li class="text-sm text-gray-700 dark:text-gray-300">
+                <a href="https://www.furmanets.com/blog/ai-agent-architecture-practical-guide" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">AI Agent Architecture — Practical Guide</a> — design patterns: ReAct, plan-and-execute, multi-agent
+              </li>
+              <li class="text-sm text-gray-700 dark:text-gray-300">
+                <a href="https://redis.io/blog/the-architecture-of-ai-agents/" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">AI Agent Architecture — Redis Blog</a> — memory and state at scale
+              </li>
+              <li class="text-sm text-gray-700 dark:text-gray-300">
+                <a href="https://github.com/sierra-research/tau-bench" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">Tau-Bench</a> — evaluate what you build
+              </li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </Layout>
 
