@@ -56,6 +56,13 @@
     "type": "video"
   },
   {
+    "title": "2025 LLM Year in Review — Karpathy",
+    "url": "https://karpathy.bearblog.dev/year-in-review-2025/",
+    "description": "Andrej Karpathy's review of six major LLM paradigm shifts in 2025 — RLVR, jagged intelligence, Cursor, Claude Code, vibe coding, and multimodal GUI futures.",
+    "category": "LLM Fundamentals",
+    "type": "article"
+  },
+  {
     "title": "RLVR Incentivizes Correct Reasoning",
     "url": "https://arxiv.org/abs/2506.14245",
     "description": "Shows that reinforcement learning with verifiable rewards implicitly encourages correct chain-of-thought reasoning in base LLMs, with a new CoT-Pass@K metric for evaluation.",
