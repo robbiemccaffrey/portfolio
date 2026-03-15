@@ -20,7 +20,11 @@ const stripped = body
   .replace(/<[^>]+>/g, ' ')          // remove HTML/SVG tags
   .replace(/[{}()\[\];=<>\/\\|`#*_~]/g, ' '); // remove code-like punctuation
 const wordCount = stripped.split(/\s+/).filter(w => w.length > 0).length;
-const readingTime = Math.max(1, Math.round(wordCount / 230));
+// Count diagrams/visuals (SVGs, images, code blocks) — add ~12s each for reader comprehension
+const diagramCount = (body.match(/<svg[\s>]/gi) || []).length + (body.match(/<img[\s>]/gi) || []).length;
+const codeBlockCount = (body.match(/```/g) || []).length / 2;
+const visualMinutes = (diagramCount * 12 + codeBlockCount * 8) / 60;
+const readingTime = Math.max(1, Math.round(wordCount / 230 + visualMinutes));
 ---
 
 <a
