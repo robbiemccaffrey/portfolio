@@ -297,6 +297,56 @@ The loss curve is the single most important chart during training. You watch it 
   </div>
 </div>
 
+Here's what this actually looks like in a terminal during a training run. This is the kind of output an engineer watches for days, weeks, or months:
+
+<div class="not-prose my-8">
+  <div class="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div class="flex items-center px-4 py-2 bg-gray-900 dark:bg-black border-b border-gray-700">
+      <div class="flex gap-1.5 mr-4">
+        <div class="w-3 h-3 rounded-full bg-red-500"></div>
+        <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+        <div class="w-3 h-3 rounded-full bg-green-500"></div>
+      </div>
+      <span class="text-xs text-gray-400 font-mono">training_run_v3 — 8×H100 cluster</span>
+    </div>
+    <div class="bg-gray-950 dark:bg-black px-5 py-4 font-mono text-xs leading-relaxed overflow-x-auto">
+      <div class="text-gray-500">$ python train.py --model gpt2-medium --gpus 8 --batch-size 512</div>
+      <div class="text-gray-500 mt-2">[2024-01-15 09:00:12] Initialising model... 354M parameters</div>
+      <div class="text-gray-500">[2024-01-15 09:00:14] Loading dataset... 15.2B tokens (FineWeb-Edu)</div>
+      <div class="text-gray-500">[2024-01-15 09:00:31] Starting training on 8×H100 GPUs</div>
+      <div class="mt-3 text-emerald-400">Step     1/500000 | loss: 10.824 | lr: 6.0e-05 | tokens/sec: 48,291</div>
+      <div class="text-emerald-400">Step   100/500000 | loss:  7.132 | lr: 6.0e-04 | tokens/sec: 312,847</div>
+      <div class="text-emerald-400">Step   500/500000 | loss:  5.491 | lr: 6.0e-04 | tokens/sec: 318,102</div>
+      <div class="text-emerald-400">Step  1000/500000 | loss:  4.687 | lr: 6.0e-04 | tokens/sec: 315,920</div>
+      <div class="text-emerald-400">Step  2000/500000 | loss:  4.102 | lr: 6.0e-04 | tokens/sec: 317,445</div>
+      <div class="text-emerald-400">Step  5000/500000 | loss:  3.741 | lr: 5.8e-04 | tokens/sec: 316,288</div>
+      <div class="text-emerald-400">Step 10000/500000 | loss:  3.498 | lr: 5.4e-04 | tokens/sec: 318,011</div>
+      <div class="text-yellow-400">Step 10001/500000 | loss:  3.497 | lr: 5.4e-04 | tokens/sec: 318,003</div>
+      <div class="text-yellow-400">[CHECKPOINT] Saving model to ./checkpoints/step-10000.pt (1.4 GB)</div>
+      <div class="text-yellow-400">[EVAL] val_loss: 3.612 | val_ppl: 37.1 | ▼ improved (prev: 39.8)</div>
+      <div class="text-emerald-400 mt-1">Step 20000/500000 | loss:  3.301 | lr: 4.8e-04 | tokens/sec: 316,920</div>
+      <div class="text-emerald-400">Step 50000/500000 | loss:  3.089 | lr: 3.2e-04 | tokens/sec: 317,112</div>
+      <div class="text-emerald-400">Step 100000/500000 | loss: 2.941 | lr: 1.8e-04 | tokens/sec: 316,845</div>
+      <div class="text-red-400 mt-1">Step 100001/500000 | loss: 8.724 | lr: 1.8e-04 | tokens/sec: 298,102</div>
+      <div class="text-red-400 font-bold">[WARNING] Loss spike detected! loss jumped from 2.941 → 8.724</div>
+      <div class="text-red-400">[WARNING] Possible causes: bad data batch, GPU memory error, NaN gradients</div>
+      <div class="text-yellow-400">[AUTO] Rolling back to checkpoint step-100000.pt...</div>
+      <div class="text-emerald-400 mt-1">Step 100001/500000 | loss: 2.944 | lr: 1.8e-04 | tokens/sec: 317,001</div>
+      <div class="text-emerald-400">Step 100002/500000 | loss: 2.939 | lr: 1.8e-04 | tokens/sec: 316,887</div>
+      <div class="text-gray-500 mt-1">                    ...training continues...</div>
+      <div class="text-emerald-400 mt-1">Step 500000/500000 | loss: 2.687 | lr: 0.0e+00 | tokens/sec: 316,440</div>
+      <div class="text-gray-500 mt-2">[2024-01-18 14:22:07] Training complete. 3 days, 5 hours, 22 minutes.</div>
+      <div class="text-gray-500">[2024-01-18 14:22:07] Final loss: 2.687 | Final val_loss: 2.812</div>
+      <div class="text-gray-500">[2024-01-18 14:22:07] Tokens processed: 153.6B | Cost estimate: $4,218</div>
+      <div class="text-gray-400 mt-2 animate-pulse">█</div>
+    </div>
+  </div>
+</div>
+
+Every line tells a story. The **loss** drops fast at first (10.8 → 4.7 in the first thousand steps) then slows to a grind (3.3 → 2.7 over the next 400,000 steps). The **learning rate** (`lr`) starts low, warms up, then gradually decays — too high and training is unstable, too low and it stalls. **Tokens/sec** tells you the GPUs are healthy — a sudden drop means a card might be failing. The yellow checkpoint lines are the model saving itself — critical insurance, because at step 100,001 the loss spikes to 8.7 (a bad data batch or hardware glitch), and the system automatically rolls back. Without that checkpoint, three days of training would be lost.
+
+This is what a $4,000 training run looks like. For GPT-4-class models, scale everything up by 10,000× — 25,000 GPUs, months of runtime, and a team watching these numbers around the clock.
+
 A loss curve that's steadily decreasing means the model is learning. A loss curve that plateaus means you've extracted most of the value from your data and architecture. A loss curve that spikes means something has gone wrong — a bad batch of data, a learning rate issue, a hardware failure. Training runs that cost tens of millions of dollars have been scrapped because the loss curve went in the wrong direction. When you're burning $100,000+ per day on compute, every hour of bad training is expensive.
 
 ### Why GPUs Are So Expensive (and in Such High Demand)
