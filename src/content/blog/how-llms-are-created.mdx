@@ -700,6 +700,16 @@ The cooking analogy makes this concrete:
 
 > SFT is like learning to cook by reading recipes and practising writing them out. RLVR is like being given ingredients and a taste test at the end — you figure out what works through actual attempts. The first produces someone good at reproducing known recipes. The second can produce someone who discovers combinations nobody thought of, because the feedback loop rewards outcomes not process.
 
+### Visible vs Hidden Reasoning
+
+RLVR also created an interesting transparency divide. DeepSeek's open-source models show their full chain-of-thought reasoning — you can watch the model think step by step, backtrack, try alternative approaches, and arrive at an answer. It's like watching someone's working in the margin of an exam paper. This is invaluable for understanding *why* the model gave a particular answer and for catching errors mid-reasoning.
+
+OpenAI's reasoning models (o1, o3) take the opposite approach: they generate reasoning traces internally but **hide them from the user**. You see a "thinking..." indicator and then get the final answer, but the actual chain of thought is redacted. The widely assumed reason is competitive: if the full reasoning traces were visible, competitors could study them to reverse-engineer OpenAI's RLVR training methodology — what reward signals they use, what reasoning patterns emerge, how the model structures its thinking. The reasoning traces are essentially a window into the proprietary training recipe. Anthropic takes a middle ground with Claude — showing a summarised version of the reasoning but not the raw trace.
+
+This matters practically. When you can see the reasoning, you can verify it. When you can't, you're trusting a black box. It's another reason to cross-check: even when a model reasons its way to an answer, the reasoning itself can contain errors that are only visible if you can actually read it.
+
+### Test-Time Compute — A New Scaling Axis
+
 RLVR also unlocked a new scaling axis: **test-time compute**. Instead of making models bigger, you give them more thinking time at inference. Longer reasoning traces — more internal "steps" before producing an answer — lead to better answers. This is conceptually novel. Previously, the only way to make models smarter was to make them larger or train them on more data. Now you can make the same model smarter by letting it think longer.
 
 Karpathy notes that compute budgets shifted significantly in 2025 — away from pretraining and toward RL. Models stayed similar sizes but got dramatically smarter through longer reinforcement learning training runs. The returns from RLVR haven't plateaued the way RLHF's did.
