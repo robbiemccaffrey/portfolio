@@ -24,6 +24,45 @@ The scale is staggering. Datasets like [FineWeb](https://huggingface.co/datasets
 
 It's worth noting how much smarter data curation has become. When GPT-2 was trained in 2019, the approach to data was relatively crude — scrape a lot of the web and do basic filtering. ChatGPT launched in late 2022 on a much larger but still imperfect dataset. Since then, the industry has learned that **data quality matters as much as data quantity**. Modern pretraining pipelines use aggressive deduplication (near-duplicate detection at scale), quality classifiers trained to score every page, toxicity and PII filters, domain-specific heuristics (is this machine-generated spam?), and careful balancing across domains — more code, more scientific text, less SEO content. FineWeb, for example, starts from 96 billion web pages and filters down to roughly 15 billion high-quality pages. The same model architecture trained on better-curated data produces a meaningfully smarter base model. Data curation has become one of the most important — and least visible — competitive advantages in AI.
 
+This raises an obvious question: if quality matters so much, why not just train on books? Books are well-edited, factually reviewed, grammatically correct, and cover every subject in depth. Surely a model trained on nothing but books would be better than one trained on the messy internet?
+
+It wouldn't — and the reason is **diversity**. A model trained only on books would write beautifully but fail at almost everything else people actually need. It wouldn't understand code (books rarely contain Python). It wouldn't understand conversational language (books don't have Reddit threads, Slack messages, or StackOverflow answers). It wouldn't know how to parse a JSON object, write a SQL query, or interpret a medical lab result. It would have no exposure to the way real people actually communicate — slang, abbreviations, typos, multilingual mixing.
+
+<div class="not-prose my-8">
+  <div class="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div class="px-5 py-2.5 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 font-sans text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Why you need the whole internet, not just the good parts</div>
+    <div class="px-4 py-6 sm:px-8 sm:py-8 space-y-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-4">
+          <div class="text-xs font-semibold uppercase tracking-wider text-red-600 dark:text-red-400 mb-3">Books only</div>
+          <ul class="text-sm text-red-800 dark:text-red-200 space-y-1.5 list-none pl-0">
+            <li>Formal prose, polished grammar</li>
+            <li>Narrow register (academic, literary)</li>
+            <li>Almost no code</li>
+            <li>No conversational patterns</li>
+            <li>No structured data (JSON, HTML, SQL)</li>
+            <li>Limited to published knowledge</li>
+          </ul>
+        </div>
+        <div class="rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 p-4">
+          <div class="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-3">Diverse web + books + code</div>
+          <ul class="text-sm text-emerald-800 dark:text-emerald-200 space-y-1.5 list-none pl-0">
+            <li>Every register: formal, casual, technical</li>
+            <li>Code in dozens of languages</li>
+            <li>Conversations, Q&A, debates, tutorials</li>
+            <li>Structured data formats</li>
+            <li>Multilingual content</li>
+            <li>Up-to-date knowledge from forums & wikis</li>
+          </ul>
+        </div>
+      </div>
+      <p class="text-xs text-gray-500 dark:text-gray-400">The goal isn't to find the "cleanest" data — it's to find the <strong>right mixture</strong>. Too much web content and the model picks up spam patterns. Too many books and it can't write code or hold a conversation. The art of data curation is getting the ratio right.</p>
+    </div>
+  </div>
+</div>
+
+The data mixture is itself a carefully tuned hyperparameter. Modern training runs typically use something like 50% web text, 25% code, 15% books and academic papers, and 10% conversational and reference data — though the exact ratios are closely guarded secrets. The insight is that breadth of capability comes from breadth of data. Quality filtering removes the garbage; diversity ensures the model can actually do what people ask it to do.
+
 ### Neural Networks — A Quick Primer
 
 Before diving into tokenization and transformers, it's worth briefly covering what a neural network actually is — since everything that follows is built on top of one.
