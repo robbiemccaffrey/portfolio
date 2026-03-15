@@ -579,43 +579,106 @@ This same mechanism is why hallucinations happen. The model doesn't "know" facts
 
 ### Context Windows — How Much the Model Can See
 
-There's a critical constraint: the model can only attend to a fixed number of tokens at a time. This is the **context window** — GPT-3 had 2,048 tokens, GPT-4 pushed to 128,000, and some models now support over a million. Everything the model needs to work with — the system prompt, the conversation history, the document you pasted in — must fit inside this window. If a conversation grows too long, the oldest messages get dropped.
+There's a critical constraint: the model can only attend to a fixed number of tokens at a time. This is the **context window**. Think of it as the model's working memory — everything it needs to work with must fit inside this window: the system prompt, conversation history, any documents you've pasted in, and its own response so far. If the conversation grows beyond the limit, the oldest messages get silently dropped. The model doesn't remember them — they're gone.
 
-But the window size isn't the whole story. Research on ["Lost in the Middle"](https://arxiv.org/abs/2307.03172) (Liu et al., 2023) found that models pay the most attention to information at the **beginning** and **end** of their context window, while information buried in the middle gets partially ignored. It's like reading a long report — you remember the opening and the conclusion, but the details on page 47 blur together.
+The race to expand context windows has been dramatic:
+
+<div class="not-prose my-8">
+  <div class="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div class="px-5 py-2.5 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 font-sans text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Context window evolution</div>
+    <div class="px-4 py-6 sm:px-8 sm:py-8">
+      <svg viewBox="0 0 700 220" class="w-full" aria-label="Timeline showing context window sizes growing from GPT-3's 2K tokens to Gemini's 2M tokens, with approximate page equivalents.">
+        {/* Timeline line */}
+        <line x1="80" y1="110" x2="660" y2="110" class="stroke-gray-200 dark:stroke-gray-700" stroke-width="2"/>
+
+        {/* GPT-3 */}
+        <circle cx="100" cy="110" r="5" class="fill-gray-400 dark:fill-gray-500"/>
+        <rect x="65" y="55" width="70" height="42" rx="6" class="fill-gray-100 dark:fill-gray-800 stroke-gray-300 dark:stroke-gray-600" stroke-width="1"/>
+        <text x="100" y="72" text-anchor="middle" font-size="10" font-family="system-ui" font-weight="600" class="fill-gray-700 dark:fill-gray-300">GPT-3</text>
+        <text x="100" y="88" text-anchor="middle" font-size="11" font-family="ui-monospace, monospace" font-weight="700" class="fill-gray-600 dark:fill-gray-400">2K</text>
+        <text x="100" y="135" text-anchor="middle" font-size="9" font-family="system-ui" class="fill-gray-400 dark:fill-gray-500">~3 pages</text>
+        <text x="100" y="148" text-anchor="middle" font-size="9" font-family="system-ui" class="fill-gray-400 dark:fill-gray-500">2020</text>
+
+        {/* GPT-4 */}
+        <circle cx="250" cy="110" r="5" class="fill-blue-400 dark:fill-blue-500"/>
+        <rect x="215" y="55" width="70" height="42" rx="6" class="fill-blue-50 dark:fill-blue-900/30 stroke-blue-300 dark:stroke-blue-700" stroke-width="1"/>
+        <text x="250" y="72" text-anchor="middle" font-size="10" font-family="system-ui" font-weight="600" class="fill-blue-700 dark:fill-blue-300">GPT-4</text>
+        <text x="250" y="88" text-anchor="middle" font-size="11" font-family="ui-monospace, monospace" font-weight="700" class="fill-blue-600 dark:fill-blue-400">128K</text>
+        <text x="250" y="135" text-anchor="middle" font-size="9" font-family="system-ui" class="fill-gray-400 dark:fill-gray-500">~200 pages</text>
+        <text x="250" y="148" text-anchor="middle" font-size="9" font-family="system-ui" class="fill-gray-400 dark:fill-gray-500">2023</text>
+
+        {/* Claude */}
+        <circle cx="430" cy="110" r="5" class="fill-purple-400 dark:fill-purple-500"/>
+        <rect x="395" y="55" width="70" height="42" rx="6" class="fill-purple-50 dark:fill-purple-900/30 stroke-purple-300 dark:stroke-purple-700" stroke-width="1.5"/>
+        <text x="430" y="72" text-anchor="middle" font-size="10" font-family="system-ui" font-weight="600" class="fill-purple-700 dark:fill-purple-300">Claude</text>
+        <text x="430" y="88" text-anchor="middle" font-size="11" font-family="ui-monospace, monospace" font-weight="700" class="fill-purple-600 dark:fill-purple-400">200K</text>
+        <text x="430" y="135" text-anchor="middle" font-size="9" font-family="system-ui" class="fill-gray-400 dark:fill-gray-500">~300 pages</text>
+        <text x="430" y="148" text-anchor="middle" font-size="9" font-family="system-ui" class="fill-gray-400 dark:fill-gray-500">2024</text>
+
+        {/* Gemini */}
+        <circle cx="600" cy="110" r="5" class="fill-emerald-400 dark:fill-emerald-500"/>
+        <rect x="565" y="55" width="70" height="42" rx="6" class="fill-emerald-50 dark:fill-emerald-900/30 stroke-emerald-300 dark:stroke-emerald-700" stroke-width="1"/>
+        <text x="600" y="72" text-anchor="middle" font-size="10" font-family="system-ui" font-weight="600" class="fill-emerald-700 dark:fill-emerald-300">Gemini</text>
+        <text x="600" y="88" text-anchor="middle" font-size="11" font-family="ui-monospace, monospace" font-weight="700" class="fill-emerald-600 dark:fill-emerald-400">2M</text>
+        <text x="600" y="135" text-anchor="middle" font-size="9" font-family="system-ui" class="fill-gray-400 dark:fill-gray-500">~3,000 pages</text>
+        <text x="600" y="148" text-anchor="middle" font-size="9" font-family="system-ui" class="fill-gray-400 dark:fill-gray-500">2025</text>
+
+        {/* Scale annotation */}
+        <text x="350" y="180" text-anchor="middle" font-size="10" font-family="system-ui" class="fill-gray-400 dark:fill-gray-500">From a short email to an entire codebase — in 5 years</text>
+      </svg>
+    </div>
+  </div>
+</div>
+
+This matters practically. A 2K-token window means the model can barely hold one conversation. At 200K, you can paste an entire codebase or a 300-page legal contract and ask questions about it. The jump from GPT-3 to modern models isn't just about intelligence — it's about how much information the model can hold in its head at once.
+
+### Why Bigger Isn't Enough — Lost in the Middle
+
+But window size alone is misleading. A model can *accept* 200,000 tokens — but does it actually *attend* to all of them equally? Research on ["Lost in the Middle"](https://arxiv.org/abs/2307.03172) (Liu et al., 2023) found that most models don't. They pay the most attention to information at the **beginning** and **end** of their context window, while information buried in the middle gets partially ignored.
+
+The reason is architectural. The attention mechanism computes relationships between every pair of tokens — but in practice, position matters. Tokens at the start of the context (the system prompt, the first instruction) get processed early and influence everything that follows. Tokens at the end (the most recent message, the actual question) get the most direct attention because they're closest to where the model generates its response. Tokens in the middle — page 47 of a 100-page document — are furthest from both anchors and receive the weakest attention signal.
 
 <div class="not-prose my-8">
   <div class="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
     <div class="px-5 py-2.5 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 font-sans text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Lost in the Middle — attention across the context window</div>
     <div class="px-4 py-6 sm:px-8 sm:py-8">
-      <svg viewBox="0 0 700 140" class="w-full" aria-label="Diagram showing that models attend strongly to the beginning and end of the context window but poorly to the middle, forming a U-shaped attention curve.">
+      <svg viewBox="0 0 700 160" class="w-full" aria-label="Diagram showing that models attend strongly to the beginning and end of the context window but poorly to the middle, forming a U-shaped attention curve.">
         {/* Axis */}
-        <line x1="60" y1="100" x2="660" y2="100" class="stroke-gray-300 dark:stroke-gray-600" stroke-width="1.5"/>
-        <text x="360" y="132" text-anchor="middle" font-size="11" font-family="system-ui" class="fill-gray-500 dark:fill-gray-400">Position in context window</text>
-        <text x="60" y="132" text-anchor="middle" font-size="10" font-family="system-ui" class="fill-gray-400 dark:fill-gray-500">Start</text>
-        <text x="660" y="132" text-anchor="middle" font-size="10" font-family="system-ui" class="fill-gray-400 dark:fill-gray-500">End</text>
+        <line x1="60" y1="110" x2="660" y2="110" class="stroke-gray-300 dark:stroke-gray-600" stroke-width="1.5"/>
+        <text x="360" y="145" text-anchor="middle" font-size="11" font-family="system-ui" class="fill-gray-500 dark:fill-gray-400">Position in context window</text>
+        <text x="60" y="145" text-anchor="middle" font-size="10" font-family="system-ui" class="fill-gray-400 dark:fill-gray-500">Start</text>
+        <text x="660" y="145" text-anchor="middle" font-size="10" font-family="system-ui" class="fill-gray-400 dark:fill-gray-500">End</text>
 
-        {/* U-shaped attention curve */}
-        <path d="M 60 25 C 120 25, 180 85, 280 90 C 380 95, 420 95, 460 90 C 540 85, 600 25, 660 20" fill="none" class="stroke-blue-500 dark:stroke-blue-400" stroke-width="2.5"/>
+        {/* U-shaped attention curve - typical model */}
+        <path d="M 60 30 C 120 30, 180 90, 280 95 C 380 100, 420 100, 460 95 C 540 90, 600 30, 660 25" fill="none" class="stroke-red-400 dark:stroke-red-500" stroke-width="2" stroke-dasharray="6,4"/>
+        <path d="M 60 30 C 120 30, 180 90, 280 95 C 380 100, 420 100, 460 95 C 540 90, 600 30, 660 25 L 660 110 L 60 110 Z" class="fill-red-100/30 dark:fill-red-900/10"/>
 
-        {/* Fill under curve */}
-        <path d="M 60 25 C 120 25, 180 85, 280 90 C 380 95, 420 95, 460 90 C 540 85, 600 25, 660 20 L 660 100 L 60 100 Z" class="fill-blue-100/50 dark:fill-blue-900/20"/>
+        {/* Flatter curve - Claude */}
+        <path d="M 60 28 C 120 30, 200 50, 280 55 C 380 58, 420 58, 460 55 C 540 50, 600 30, 660 25" fill="none" class="stroke-purple-500 dark:stroke-purple-400" stroke-width="2.5"/>
+        <path d="M 60 28 C 120 30, 200 50, 280 55 C 380 58, 420 58, 460 55 C 540 50, 600 30, 660 25 L 660 110 L 60 110 Z" class="fill-purple-100/30 dark:fill-purple-900/10"/>
 
         {/* Labels */}
-        <text x="90" y="18" font-size="10" font-family="system-ui" font-weight="600" class="fill-emerald-600 dark:fill-emerald-400">High attention</text>
-        <text x="320" y="82" font-size="10" font-family="system-ui" font-weight="600" class="fill-red-500 dark:fill-red-400">Low attention</text>
-        <text x="600" y="14" font-size="10" font-family="system-ui" font-weight="600" class="fill-emerald-600 dark:fill-emerald-400">High attention</text>
+        <text x="330" y="90" font-size="9" font-family="system-ui" font-weight="600" class="fill-red-500 dark:fill-red-400">Typical model — deep U-shape</text>
+        <text x="330" y="48" font-size="9" font-family="system-ui" font-weight="600" class="fill-purple-600 dark:fill-purple-400">Claude — flatter, more uniform attention</text>
 
         {/* Y-axis label */}
-        <text x="30" y="60" text-anchor="middle" font-size="10" font-family="system-ui" class="fill-gray-400 dark:fill-gray-500" transform="rotate(-90, 30, 60)">Attention</text>
+        <text x="25" y="70" text-anchor="middle" font-size="10" font-family="system-ui" class="fill-gray-400 dark:fill-gray-500" transform="rotate(-90, 25, 70)">Attention</text>
+
+        {/* Annotations */}
+        <text x="95" y="20" font-size="9" font-family="system-ui" class="fill-emerald-600 dark:fill-emerald-400">System prompt</text>
+        <text x="600" y="16" font-size="9" font-family="system-ui" class="fill-emerald-600 dark:fill-emerald-400">Your question</text>
+        <text x="360" y="14" text-anchor="middle" font-size="9" font-family="system-ui" class="fill-gray-400 dark:fill-gray-500">Page 47 of 100</text>
       </svg>
     </div>
     <div class="px-5 py-3 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400">
-      This is why putting important instructions at the start of a prompt (system message) and at the end (the user's question) tends to work better than burying key details in the middle of a long document.
+      The flatter the curve, the more reliably the model uses information regardless of where you put it. Anthropic's Claude models have been specifically optimised for uniform attention across the full context window — a key differentiator in real-world tasks like document analysis and codebase navigation.
     </div>
   </div>
 </div>
 
-This has practical implications. If you paste a 50-page document and ask a question about a detail on page 30, the model may miss it — not because it can't process 50 pages, but because attention fades in the middle. It's one reason why retrieval-augmented generation (RAG) works well: instead of dumping everything into the context window, you retrieve only the relevant chunks and place them where the model will attend to them.
+Anthropic's Claude models have made significant progress here. On the "Needle in a Haystack" benchmark — where a specific fact is hidden at a random position within a long document and the model is asked to retrieve it — Claude achieves near-perfect recall across the entire 200K window. Many competing models score well at the beginning and end but drop significantly in the middle. Anthropic has specifically optimised for **uniform attention** across the full context, making Claude particularly strong for tasks like analysing long legal documents, reviewing entire codebases, or working through multi-chapter research papers where the critical detail could be anywhere.
+
+This has practical implications. If you paste a 50-page document and ask a question about a detail on page 30, a model with the Lost in the Middle problem may miss it — not because it can't process 50 pages, but because attention fades in the middle. It's also one reason why retrieval-augmented generation (RAG) works well: instead of dumping everything into the context window, you retrieve only the relevant chunks and place them where the model will attend to them most strongly.
 
 What you get at the end is a **base model** — essentially expensive autocomplete. It's a next-token probability machine, and nothing more.
 
