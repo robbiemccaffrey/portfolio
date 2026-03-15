@@ -524,6 +524,59 @@ Given the sequence of tokens so far, the model outputs a probability distributio
 
 The model samples from this distribution to pick the next token, then feeds it back in and repeats. This is all it does — token in, probability distribution out, sample, repeat. Training adjusts billions of parameters so these distributions get better and better at matching what actually comes next in real text. This runs over months on thousands of GPUs, processing trillions of tokens. The model sees no labels, no instructions, no notion of right or wrong. It just learns which tokens are likely to follow which other tokens.
 
+### Why You Get Different Answers to the Same Question
+
+This sampling process explains something that surprises people: ask an LLM the exact same question twice and you'll often get a different answer. This isn't a bug — it's a direct consequence of how generation works.
+
+Remember the DJ switchboard analogy. The attention layers set the levels — boosting "France" and "capital", determining that "Paris" should get 62% probability. But the DJ doesn't just slam one fader to max and mute everything else. Multiple channels have some signal. "Paris" is loudest, but "the", "a", "located" all have some probability too. The model then **rolls a weighted dice** across all ~100,000 tokens to pick the next one. Most of the time it lands on "Paris." But sometimes it lands on "the" — and now the entire sequence that follows is different, because the next prediction is conditioned on this different choice.
+
+<div class="not-prose my-8">
+  <div class="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div class="px-5 py-2.5 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 font-sans text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Same prompt, different samples — probability cascades</div>
+    <div class="px-4 py-6 sm:px-8 sm:py-8 space-y-5">
+      <div>
+        <div class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">Prompt</div>
+        <p class="text-sm font-mono text-gray-800 dark:text-gray-200">"Explain why the sky is blue"</p>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-4">
+          <div class="text-xs font-bold text-blue-600 dark:text-blue-400 mb-2">Run 1 — sampled "The"</div>
+          <p class="text-sm text-gray-700 dark:text-gray-300">"<strong>The</strong> sky appears blue because of a phenomenon called Rayleigh scattering. Sunlight contains all colours, and shorter wavelengths (blue) scatter more..."</p>
+          <div class="flex flex-wrap gap-1 mt-3">
+            <span class="px-1.5 py-0.5 rounded text-xs font-mono bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">The</span>
+            <span class="text-gray-400 text-xs">→</span>
+            <span class="px-1.5 py-0.5 rounded text-xs font-mono bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">sky</span>
+            <span class="text-gray-400 text-xs">→</span>
+            <span class="px-1.5 py-0.5 rounded text-xs font-mono bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">appears</span>
+            <span class="text-gray-400 text-xs">→</span>
+            <span class="px-1.5 py-0.5 rounded text-xs font-mono bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">blue</span>
+            <span class="text-gray-400 text-xs">→ ...</span>
+          </div>
+        </div>
+        <div class="rounded-lg border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/20 p-4">
+          <div class="text-xs font-bold text-purple-600 dark:text-purple-400 mb-2">Run 2 — sampled "When"</div>
+          <p class="text-sm text-gray-700 dark:text-gray-300">"<strong>When</strong> sunlight enters the atmosphere, it collides with gas molecules. Blue light has a shorter wavelength, so it gets scattered in all directions..."</p>
+          <div class="flex flex-wrap gap-1 mt-3">
+            <span class="px-1.5 py-0.5 rounded text-xs font-mono bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300">When</span>
+            <span class="text-gray-400 text-xs">→</span>
+            <span class="px-1.5 py-0.5 rounded text-xs font-mono bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">sunlight</span>
+            <span class="text-gray-400 text-xs">→</span>
+            <span class="px-1.5 py-0.5 rounded text-xs font-mono bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">enters</span>
+            <span class="text-gray-400 text-xs">→</span>
+            <span class="px-1.5 py-0.5 rounded text-xs font-mono bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">the</span>
+            <span class="text-gray-400 text-xs">→ ...</span>
+          </div>
+        </div>
+      </div>
+      <p class="text-xs text-gray-500 dark:text-gray-400">Both answers are correct — but they're completely different text. The first token sampled differently, and every subsequent token was conditioned on a different history. One dice roll at the start creates an entirely different cascade.</p>
+    </div>
+  </div>
+</div>
+
+This is controlled by a parameter called **temperature**. At temperature 0, the model always picks the highest-probability token — deterministic, identical every time, but often robotic and repetitive. At higher temperatures, the dice is more random — more creative, more varied, but also more likely to go off the rails. Most chat interfaces default to a moderate temperature: varied enough to feel natural, constrained enough to stay relevant.
+
+This same mechanism is why hallucinations happen. The model doesn't "know" facts and sometimes "make mistakes." There are no facts inside it — only probability distributions over tokens. If the probabilities happen to favour the correct token (which they usually do for common knowledge), the output is factually correct. If the dice lands on a less-likely-but-still-plausible token, the model confidently follows that path — generating fluent, convincing text that's wrong. It's not lying. It's not confused. It's sampling from a distribution, and sometimes the sample doesn't correspond to reality. Every word you read from an LLM is the output of a weighted dice roll — and understanding this is the single most important thing for using these tools well.
+
 ### Context Windows — How Much the Model Can See
 
 There's a critical constraint: the model can only attend to a fixed number of tokens at a time. This is the **context window** — GPT-3 had 2,048 tokens, GPT-4 pushed to 128,000, and some models now support over a million. Everything the model needs to work with — the system prompt, the conversation history, the document you pasted in — must fit inside this window. If a conversation grows too long, the oldest messages get dropped.
