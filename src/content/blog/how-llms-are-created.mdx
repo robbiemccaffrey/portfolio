@@ -20,6 +20,10 @@ Everything starts with data. Pretraining is the foundational stage where a model
 
 The scale is staggering. Datasets like [FineWeb](https://huggingface.co/datasets/HuggingFaceFW/fineweb) contain over 1.2 billion web pages, heavily filtered for quality. Raw web crawls are noisy — full of spam, duplicates, and low-quality content — so significant effort goes into cleaning and deduplication before a single token is processed.
 
+### Data Curation — The Hidden Lever
+
+It's worth noting how much smarter data curation has become. When GPT-2 was trained in 2019, the approach to data was relatively crude — scrape a lot of the web and do basic filtering. ChatGPT launched in late 2022 on a much larger but still imperfect dataset. Since then, the industry has learned that **data quality matters as much as data quantity**. Modern pretraining pipelines use aggressive deduplication (near-duplicate detection at scale), quality classifiers trained to score every page, toxicity and PII filters, domain-specific heuristics (is this machine-generated spam?), and careful balancing across domains — more code, more scientific text, less SEO content. FineWeb, for example, starts from 96 billion web pages and filters down to roughly 15 billion high-quality pages. The same model architecture trained on better-curated data produces a meaningfully smarter base model. Data curation has become one of the most important — and least visible — competitive advantages in AI.
+
 Before any of this learning can happen, text needs to be converted into something a neural network can process. Raw text is a one-dimensional sequence of characters — just a long string. **Tokenization** converts this string into a sequence of symbols from a fixed vocabulary using Byte Pair Encoding (BPE). The algorithm starts with individual characters, then repeatedly merges the most frequent adjacent pairs into new tokens. After enough merges, you get a vocabulary — GPT-4's is roughly 100,000 tokens.
 
 Here's how BPE builds up its vocabulary. It starts with single characters and iteratively merges the most common pairs:
@@ -148,7 +152,17 @@ Now look at what tokenization actually does to a real sentence. Each coloured bl
 
 You can explore this yourself with [Tiktokenizer](https://tiktokenizer.vercel.app/) — paste some text and watch how it splits. Try your name, some code, text in another language. You'll notice the tokenizer is opinionated: English prose is efficient (few tokens per word), while unusual strings burn through tokens fast.
 
-The transformer architecture — billions of parameters arranged in attention layers — then learns a single objective: **predict the next token**. Given the sequence of tokens so far, the model outputs a probability distribution over the entire vocabulary — a percentage chance for each of the ~100,000 possible next tokens.
+### The Transformer — A DJ's Switchboard for Meaning
+
+The transformer architecture — billions of parameters arranged in **attention layers** — then learns a single objective: **predict the next token**. But how does it decide which tokens matter for the prediction?
+
+Think of it like a DJ's mixing board. A DJ has dozens of channels — vocals, bass, drums, synths — and for every moment in a track, they're adjusting which channels to boost and which to suppress. The transformer's attention mechanism works the same way. For every token the model processes, it has to decide: which of the previous tokens should I pay attention to right now? When predicting the word after "The capital of France is", the attention mechanism learns to boost the signal from "France" and "capital" while suppressing "The" and "of" — just like a DJ pulling up the vocal channel and dropping the hi-hat for a breakdown.
+
+Each attention layer is like a different DJ working the same track simultaneously — one might focus on grammatical structure, another on semantic meaning, another on positional patterns. Stack dozens of these layers and you get a system that can attend to complex, long-range relationships in text.
+
+If you want to see this in action, Brendan Bycroft built an incredible [interactive transformer visualization](https://bbycroft.net/llm) that lets you watch tokens flow through each layer of a working model. You can see attention patterns forming in real time — which tokens are "looking at" which other tokens at each stage. It makes the abstract architecture tangible.
+
+Given the sequence of tokens so far, the model outputs a probability distribution over the entire vocabulary — a percentage chance for each of the ~100,000 possible next tokens.
 
 <div class="not-prose my-8">
   <div class="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -198,6 +212,46 @@ The transformer architecture — billions of parameters arranged in attention la
 </div>
 
 The model samples from this distribution to pick the next token, then feeds it back in and repeats. This is all it does — token in, probability distribution out, sample, repeat. Training adjusts billions of parameters so these distributions get better and better at matching what actually comes next in real text. This runs over months on thousands of GPUs, processing trillions of tokens. The model sees no labels, no instructions, no notion of right or wrong. It just learns which tokens are likely to follow which other tokens.
+
+### Context Windows — How Much the Model Can See
+
+There's a critical constraint: the model can only attend to a fixed number of tokens at a time. This is the **context window** — GPT-3 had 2,048 tokens, GPT-4 pushed to 128,000, and some models now support over a million. Everything the model needs to work with — the system prompt, the conversation history, the document you pasted in — must fit inside this window. If a conversation grows too long, the oldest messages get dropped.
+
+But the window size isn't the whole story. Research on ["Lost in the Middle"](https://arxiv.org/abs/2307.03172) (Liu et al., 2023) found that models pay the most attention to information at the **beginning** and **end** of their context window, while information buried in the middle gets partially ignored. It's like reading a long report — you remember the opening and the conclusion, but the details on page 47 blur together.
+
+<div class="not-prose my-8">
+  <div class="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div class="px-5 py-2.5 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 font-sans text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Lost in the Middle — attention across the context window</div>
+    <div class="px-4 py-6 sm:px-8 sm:py-8">
+      <svg viewBox="0 0 700 140" class="w-full" aria-label="Diagram showing that models attend strongly to the beginning and end of the context window but poorly to the middle, forming a U-shaped attention curve.">
+        {/* Axis */}
+        <line x1="60" y1="100" x2="660" y2="100" class="stroke-gray-300 dark:stroke-gray-600" stroke-width="1.5"/>
+        <text x="360" y="132" text-anchor="middle" font-size="11" font-family="system-ui" class="fill-gray-500 dark:fill-gray-400">Position in context window</text>
+        <text x="60" y="132" text-anchor="middle" font-size="10" font-family="system-ui" class="fill-gray-400 dark:fill-gray-500">Start</text>
+        <text x="660" y="132" text-anchor="middle" font-size="10" font-family="system-ui" class="fill-gray-400 dark:fill-gray-500">End</text>
+
+        {/* U-shaped attention curve */}
+        <path d="M 60 25 C 120 25, 180 85, 280 90 C 380 95, 420 95, 460 90 C 540 85, 600 25, 660 20" fill="none" class="stroke-blue-500 dark:stroke-blue-400" stroke-width="2.5"/>
+
+        {/* Fill under curve */}
+        <path d="M 60 25 C 120 25, 180 85, 280 90 C 380 95, 420 95, 460 90 C 540 85, 600 25, 660 20 L 660 100 L 60 100 Z" class="fill-blue-100/50 dark:fill-blue-900/20"/>
+
+        {/* Labels */}
+        <text x="90" y="18" font-size="10" font-family="system-ui" font-weight="600" class="fill-emerald-600 dark:fill-emerald-400">High attention</text>
+        <text x="320" y="82" font-size="10" font-family="system-ui" font-weight="600" class="fill-red-500 dark:fill-red-400">Low attention</text>
+        <text x="600" y="14" font-size="10" font-family="system-ui" font-weight="600" class="fill-emerald-600 dark:fill-emerald-400">High attention</text>
+
+        {/* Y-axis label */}
+        <text x="30" y="60" text-anchor="middle" font-size="10" font-family="system-ui" class="fill-gray-400 dark:fill-gray-500" transform="rotate(-90, 30, 60)">Attention</text>
+      </svg>
+    </div>
+    <div class="px-5 py-3 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400">
+      This is why putting important instructions at the start of a prompt (system message) and at the end (the user's question) tends to work better than burying key details in the middle of a long document.
+    </div>
+  </div>
+</div>
+
+This has practical implications. If you paste a 50-page document and ask a question about a detail on page 30, the model may miss it — not because it can't process 50 pages, but because attention fades in the middle. It's one reason why retrieval-augmented generation (RAG) works well: instead of dumping everything into the context window, you retrieve only the relevant chunks and place them where the model will attend to them.
 
 What you get at the end is a **base model** — essentially expensive autocomplete. It's a next-token probability machine, and nothing more.
 
@@ -283,7 +337,9 @@ Ask an LLM: *"Which is larger, 9.11 or 9.8?"* Models frequently answer **9.11** 
 
 ### The Bible Verse Problem
 
-A related variant: *"Is 9.11 greater than 9.8?"* Some models answer yes, then justify it by citing that "Luke 9:11 comes after Luke 9:8 in the Bible." The model isn't joking — it has genuinely found a statistical pattern where 9.11 follows 9.8 (Bible verse ordering), and it's using that as evidence for a numerical comparison. This is hallucination at its most revealing: the model found a pattern that is *internally consistent* with its training data but completely wrong for the question being asked.
+This one goes deeper than it first appears. Researchers at [Transluce](https://transluce.org/observability-interface) — a nonprofit AI interpretability lab co-founded by Jacob Steinhardt (UC Berkeley) and Sarah Schwettmann (MIT) — used mechanistic interpretability tools to look *inside* the model and find out exactly why it gets this wrong. What they discovered: specific neurons fire when the model encounters "9.11" and "9.8" — and those neurons have nothing to do with decimal maths. They found **"Bible verse" neurons** trained on biblical text where chapter:verse notation (Luke 9:8 comes before Luke 9:11) treats the number after the colon as a sequential integer. They found **date neurons** where 9/11 comes after 9/8. And they found **gravity neurons** where 9.8 m/s² activates unrelated physics context.
+
+When they tested 1,280 queries comparing numbers in this format, the baseline model got just 55% right — barely better than a coin flip. When they deactivated the Bible verse, date, and gravity neurons, accuracy jumped to 77%. Roughly 0.4% of all neurons in the model relate to the Bible — a tiny fraction, but enough to corrupt decimal comparisons across the board.
 
 <div class="not-prose my-8">
   <div class="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -322,9 +378,13 @@ A related variant: *"Is 9.11 greater than 9.8?"* Some models answer yes, then ju
   </div>
 </div>
 
-### Why This Matters
+### Brilliantly Smart, Bafflingly Stupid
 
-These aren't edge cases — they reveal the fundamental nature of the system. An LLM doesn't do maths, count letters, or reason from first principles. It predicts the most likely next token based on patterns in its training data. When those patterns happen to align with truth (which is most of the time), the model looks intelligent. When they don't, it produces fluent, confident nonsense.
+These examples reveal something genuinely strange about LLMs: they are simultaneously the most capable and the most unreliable tools you'll ever use. The same model that can write a working compiler from a natural language description will confidently tell you that "strawberry" has two r's. The same model that can explain quantum entanglement clearly enough for a teenager to understand will insist that 9.11 is greater than 9.8. Karpathy calls this **"jagged intelligence"** — the model's capabilities aren't a smooth gradient from easy to hard. It can solve problems that stump most humans while failing tasks a child could do.
+
+This isn't a bug that will be fixed in the next version. It's a structural consequence of how these systems work. The model doesn't *know* things — it has statistical patterns that usually correlate with truth. When the patterns align, it's astonishingly capable. When they don't, it's astonishingly wrong — and it has no way to tell the difference. It will deliver both with identical confidence.
+
+The practical takeaway: **always cross-check**. Treat an LLM like a brilliant but unreliable colleague. Use it to draft, explore, brainstorm, and accelerate your work — but verify anything that matters. The moment you stop checking is the moment you'll get burned by a hallucination you didn't catch. These are tools that make you dramatically more productive *when you stay in the loop*. They're dangerous when you don't.
 
 This is precisely why the remaining three training stages exist. SFT teaches models to say "I don't know" and to call tools (a calculator, a code interpreter) instead of guessing. RLHF punishes confident wrong answers. And RLVR, as we'll see, teaches the model to actually reason its way to verifiable answers.
 
@@ -466,13 +526,88 @@ The economics are dramatic. Where pretraining takes months and costs millions, S
 
 ## Stage 3: RLHF — Learning from Human Preferences
 
-SFT gets you a helpful assistant, but "helpful" is subjective. Ask a model to explain quantum mechanics and there are dozens of valid approaches — some clearer, some more accurate, some better matched to the audience. Is this summary good? Is this explanation clear? Is this creative writing engaging? There's no formula for "better" — it requires human judgment. Reinforcement Learning from Human Feedback (RLHF) addresses this by learning a model of human preferences.
+SFT gets you a helpful assistant, but "helpful" is subjective. Ask a model to explain quantum mechanics and there are dozens of valid approaches — some clearer, some more accurate, some better matched to the audience. Is this summary good? Is this creative writing engaging? Is this joke funny? There's no formula for "better" — it requires human judgment.
 
-The process works like this: the model generates multiple responses to the same prompt, human annotators rank them from best to worst, and a **reward model** is trained to approximate those rankings. For example, given the prompt "Explain why the sky is blue," the model might produce three responses — one that's technically accurate but dense, one that uses a good analogy but gets a detail wrong, and one that's clear and correct. Humans rank them, and the reward model learns to score responses the way humans would. Once trained, the reward model can score any response — scaling evaluation from a few thousand human judgments to millions of model outputs. The language model is then optimised via reinforcement learning to produce responses that score higher on the reward model.
+### The Evaluation Problem
+
+This is harder than it sounds. Consider: how do you automatically evaluate whether a joke is funny? You can't write a function for it. You can't check it against an answer key. Humour is subjective, cultural, contextual — the same joke lands differently depending on the audience. The same is true for writing quality, explanation clarity, conversational tone, and most of the things that separate a good AI assistant from a mediocre one.
+
+You could try asking another AI to evaluate — but that just moves the problem. How do you evaluate the evaluator? This is the fundamental challenge: **evaluation of open-ended tasks is itself an open-ended task**.
+
+### Why Ranking Works (For Humans)
+
+Here's the clever insight behind RLHF: while *scoring* quality on an absolute scale is nearly impossible, *ranking* is something humans do naturally and reliably. Show someone two responses and ask "which is better?" — they can almost always tell you, even if they can't articulate a precise score. Consider this example:
+
+<div class="not-prose my-8">
+  <div class="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div class="px-5 py-2.5 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 font-sans text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">RLHF — humans rank, they don't score</div>
+    <div class="px-4 py-6 sm:px-8 sm:py-8 space-y-4">
+      <div>
+        <div class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">Prompt</div>
+        <p class="text-sm font-mono text-gray-800 dark:text-gray-200">"Write a short poem about rain"</p>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div class="rounded-lg border-2 border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/20 p-4">
+          <div class="text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-2">Response A — Ranked #1</div>
+          <p class="text-sm text-gray-700 dark:text-gray-300 italic">"The rain speaks in a language<br/>only gutters understand —<br/>running sentences together<br/>until the streets are fluent."</p>
+        </div>
+        <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
+          <div class="text-xs font-bold text-gray-500 dark:text-gray-400 mb-2">Response B — Ranked #2</div>
+          <p class="text-sm text-gray-700 dark:text-gray-300 italic">"Rain falls from the sky,<br/>drops of water, wet and cold.<br/>Puddles on the ground."</p>
+        </div>
+        <div class="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-4">
+          <div class="text-xs font-bold text-red-500 dark:text-red-400 mb-2">Response C — Ranked #3</div>
+          <p class="text-sm text-gray-700 dark:text-gray-300 italic">"The the the the rain<br/>is wet and also the the<br/>water falls down wet."</p>
+        </div>
+      </div>
+      <p class="text-xs text-gray-500 dark:text-gray-400">You can't put a number on why A is better than B. But you <em>instantly</em> know C is worst and A is best. This is what RLHF exploits.</p>
+    </div>
+  </div>
+</div>
+
+Reinforcement Learning from Human Feedback (RLHF) uses this insight. The model generates multiple responses to the same prompt, human annotators rank them from best to worst, and a **reward model** is trained to approximate those rankings. Once trained, the reward model can score any response — scaling evaluation from a few thousand human judgments to millions of model outputs. The language model is then optimised via reinforcement learning to produce responses that score higher on the reward model.
 
 This works well for subjective quality — tone, clarity, helpfulness, safety. The early iterations produce genuine improvements. Responses get more natural, more careful, better structured. But there's a fundamental problem: the reward model is an approximation, not ground truth. It's a neural network trained to *simulate* human preferences, and it has blind spots.
 
-Given enough optimisation pressure, models learn to exploit those blind spots. This is called **reward hacking**. The model discovers patterns that score highly on the reward model but aren't actually better by human standards. It might learn that longer responses score higher (because annotators sometimes equate length with thoroughness), so it becomes verbose. It might learn that hedging language ("It's important to note that...") scores well, so it hedges everything. It might learn to produce confident-sounding but shallow answers that pattern-match what the reward model likes. The model isn't trying to be helpful — it's trying to maximise a score, and maximising a score is not the same thing.
+### Reward Hacking — When the Model Games the System
+
+Given enough optimisation pressure, models learn to exploit those blind spots. This is called **reward hacking**. The model discovers patterns that score highly on the reward model but aren't actually better by human standards.
+
+<div class="not-prose my-8">
+  <div class="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div class="px-5 py-2.5 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 font-sans text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Reward hacking — how the model games RLHF</div>
+    <div class="px-4 py-6 sm:px-8 sm:py-8">
+      <svg viewBox="0 0 700 200" class="w-full" aria-label="Chart showing model quality improving in early RLHF steps then degrading as reward hacking takes over, with a dotted line showing where training should be cut off.">
+        {/* Axes */}
+        <line x1="60" y1="170" x2="660" y2="170" class="stroke-gray-300 dark:stroke-gray-600" stroke-width="1.5"/>
+        <line x1="60" y1="170" x2="60" y2="20" class="stroke-gray-300 dark:stroke-gray-600" stroke-width="1.5"/>
+        <text x="360" y="198" text-anchor="middle" font-size="11" font-family="system-ui" class="fill-gray-500 dark:fill-gray-400">RL training steps</text>
+        <text x="20" y="95" text-anchor="middle" font-size="11" font-family="system-ui" class="fill-gray-500 dark:fill-gray-400" transform="rotate(-90, 20, 95)">Quality</text>
+
+        {/* Reward model score - keeps going up */}
+        <path d="M 80 150 C 150 130, 200 100, 280 70 C 360 45, 450 30, 640 15" fill="none" class="stroke-blue-400 dark:stroke-blue-500" stroke-width="2" stroke-dasharray="6,4"/>
+        <text x="645" y="12" font-size="9" font-family="system-ui" class="fill-blue-500 dark:fill-blue-400">Reward model score</text>
+
+        {/* Actual quality - goes up then down */}
+        <path d="M 80 150 C 150 125, 200 90, 300 55 C 380 65, 450 85, 640 130" fill="none" class="stroke-emerald-500 dark:stroke-emerald-400" stroke-width="2.5"/>
+        <text x="645" y="134" font-size="9" font-family="system-ui" class="fill-emerald-600 dark:fill-emerald-400">Actual quality</text>
+
+        {/* Cut-off line */}
+        <line x1="300" y1="25" x2="300" y2="165" class="stroke-red-400 dark:stroke-red-500" stroke-width="1.5" stroke-dasharray="4,3"/>
+        <text x="305" y="38" font-size="10" font-family="system-ui" font-weight="600" class="fill-red-500 dark:fill-red-400">← cut off here</text>
+        <text x="305" y="52" font-size="9" font-family="system-ui" class="fill-red-400 dark:fill-red-500">(~100-1000 steps)</text>
+
+        {/* Annotations */}
+        <text x="160" y="108" font-size="9" font-family="system-ui" class="fill-emerald-600 dark:fill-emerald-400">Genuine</text>
+        <text x="152" y="120" font-size="9" font-family="system-ui" class="fill-emerald-600 dark:fill-emerald-400">improvement</text>
+        <text x="470" y="96" font-size="9" font-family="system-ui" class="fill-red-500 dark:fill-red-400">Reward hacking:</text>
+        <text x="470" y="108" font-size="9" font-family="system-ui" class="fill-red-500 dark:fill-red-400">score ↑ quality ↓</text>
+      </svg>
+    </div>
+  </div>
+</div>
+
+It might learn that longer responses score higher (because annotators sometimes equate length with thoroughness), so it becomes verbose. It might learn that hedging language ("It's important to note that...") scores well, so it hedges everything. It might learn to produce confident-sounding but shallow answers that pattern-match what the reward model likes. The model isn't trying to be helpful — it's trying to maximise a score, and maximising a score is not the same thing.
 
 This is why Karpathy notes that training caps are essential — typically 100 to 1,000 RL steps. Early in RLHF training, the reward model's signal is genuinely useful and the model improves. But after too many steps, the model starts overfitting to the reward model's imperfections rather than actual quality. You have to cut it off before the gaming overtakes the gains. RLHF gets you meaningful improvements, but it has a ceiling — and pushing past that ceiling makes things worse, not better.
 
