@@ -56,6 +56,13 @@
     "type": "video"
   },
   {
+    "title": "RLVR Incentivizes Correct Reasoning",
+    "url": "https://arxiv.org/abs/2506.14245",
+    "description": "Shows that reinforcement learning with verifiable rewards implicitly encourages correct chain-of-thought reasoning in base LLMs, with a new CoT-Pass@K metric for evaluation.",
+    "category": "LLM Fundamentals",
+    "type": "paper"
+  },
+  {
     "title": "AlphaGo — The Movie",
     "url": "https://www.youtube.com/watch?v=WXuK6gekU1Y",
     "description": "Award-winning DeepMind documentary following the historic 2016 match between Go master Lee Sedol and AlphaGo — a turning point for AI and reinforcement learning.",
