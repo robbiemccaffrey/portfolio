@@ -56,6 +56,13 @@
     "type": "video"
   },
   {
+    "title": "On the Biology of a Large Language Model",
+    "url": "https://transformer-circuits.pub/2025/attribution-graphs/biology.html",
+    "description": "Anthropic's circuit tracing research on Claude 3.5 Haiku — uses attribution graphs to reveal how LLMs perform multi-step reasoning, planning, and multilingual processing internally.",
+    "category": "LLM Fundamentals",
+    "type": "paper"
+  },
+  {
     "title": "Tiktokenizer",
     "url": "https://tiktokenizer.vercel.app/",
     "description": "Interactive tokenizer explorer — visualise how text is split into tokens by different OpenAI models in real time.",
