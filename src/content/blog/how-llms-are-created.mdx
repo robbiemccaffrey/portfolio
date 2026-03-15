@@ -20,21 +20,57 @@ Everything starts with data. Pretraining is the foundational stage where a model
 
 The scale is staggering. Datasets like [FineWeb](https://huggingface.co/datasets/HuggingFaceFW/fineweb) contain over 1.2 billion web pages, heavily filtered for quality. Raw web crawls are noisy — full of spam, duplicates, and low-quality content — so significant effort goes into cleaning and deduplication before a single token is processed.
 
-Before text reaches the model, it gets broken into **tokens** via Byte Pair Encoding (BPE). Tokens aren't words — they're subword units that the model learns to work with. GPT-4 uses a vocabulary of roughly 100,000 tokens. You can see this in action with [Tiktokenizer](https://tiktokenizer.vercel.app/) — try pasting some text and watching how it splits. The word "understanding" might be one token, while an unusual word gets broken into three or four pieces.
+Before any of this learning can happen, text needs to be converted into something a neural network can process. Raw text is a one-dimensional sequence of characters — just a long string. **Tokenization** converts this string into a sequence of symbols from a fixed vocabulary using Byte Pair Encoding (BPE). The algorithm starts with individual characters, then repeatedly merges the most frequent adjacent pairs into new tokens. After enough merges, you get a vocabulary — GPT-4's is roughly 100,000 tokens — where common words like "the" are single tokens, ordinary words like "understanding" might be one or two tokens, and rare words get split into several pieces.
 
-The transformer architecture — billions of parameters arranged in attention layers — then learns a single objective: **predict the next token**. Given all the tokens so far, what comes next? This is trained over months on thousands of GPUs, processing trillions of tokens. The model sees no labels, no instructions, no notion of right or wrong. It just learns to predict what text typically follows other text.
+You can see this in action with [Tiktokenizer](https://tiktokenizer.vercel.app/) — paste some text and watch how it splits. Try your name, some code, text in another language. You'll notice the tokenizer is opinionated: English prose is efficient (few tokens per word), while unusual strings burn through tokens fast. This matters because the model's entire world is this token sequence. It never sees raw text — it sees a stream of integer IDs, one dimension, one token at a time.
 
-What you get at the end is a **base model** — essentially expensive autocomplete. It can complete text convincingly because it has absorbed the statistical structure of human language. But it has no concept of being helpful, truthful, or safe. Ask it a question and it might answer, or it might continue writing as if the question were part of a document and generate five more questions. It's a mirror of the internet, reflecting everything it absorbed — the brilliant and the terrible alike. GPT-2 in 2019 cost roughly $40,000 to train. Karpathy later reproduced it for about $672 with modern tooling and hardware — a striking illustration of how fast the infrastructure has improved.
+The transformer architecture — billions of parameters arranged in attention layers — then learns a single objective: **predict the next token**. Given the sequence of tokens so far, the model outputs a probability distribution over the entire vocabulary — a percentage chance for each of the ~100,000 possible next tokens. The token "Paris" might get 0.4% probability, "London" might get 0.3%, "the" might get 12%. Training adjusts billions of parameters so these probability distributions get better and better at matching what actually comes next in real text. This is trained over months on thousands of GPUs, processing trillions of tokens. The model sees no labels, no instructions, no notion of right or wrong. It just learns which tokens are likely to follow which other tokens.
+
+What you get at the end is a **base model** — essentially expensive autocomplete. It's a next-token probability machine, and nothing more.
+
+This is genuinely hard to internalise, because the base model *feels* like it understands things. It can write fluent paragraphs, produce working code, and discuss philosophy. But all of these abilities are side effects of next-token prediction on internet-scale data. The model has no concept of being helpful, truthful, or safe. It's a mirror of the internet, and it behaves accordingly.
+
+Here's what that actually looks like. If you give a base model a prompt like:
+
+```
+User: What is the capital of France?
+Assistant:
+```
+
+You might expect it to reply "Paris." But a base model doesn't know it's supposed to *answer*. It's seen millions of web pages, and this text could be from anywhere — a forum post, a quiz, a dataset, a chatbot transcript. So it might:
+
+- Complete it correctly: `The capital of France is Paris.`
+- Generate more Q&A pairs: `User: What is the capital of Germany? User: What is the capital of Spain?` — because it's pattern-matching a list of questions
+- Continue with something completely unrelated — whatever text statistically follows this kind of pattern in its training data
+- Produce harmful or offensive content — it has no filter, because it was never taught what's appropriate
+
+The base model is a powerful text generator with zero alignment. It can produce anything it saw in training, weighted by probability. Getting from here to a useful assistant requires the next three stages.
+
+GPT-2 in 2019 cost roughly $40,000 to train. Karpathy later reproduced it for about $672 with modern tooling and hardware — a striking illustration of how fast the infrastructure has improved.
 
 ---
 
 ## Stage 2: Supervised Fine-Tuning — Learning to Be Helpful
 
-The base model can complete text, but it can't follow instructions. Supervised fine-tuning (SFT) bridges that gap by training the model on curated datasets of conversations — human-written examples of what a good assistant response looks like.
+As we saw, the base model doesn't know it's supposed to be an assistant. It just predicts the next token. Supervised fine-tuning (SFT) fixes this by training the model on curated datasets of conversations — human-written examples of what a good assistant response looks like.
 
 These datasets come from two sources. Human-curated collections like [OASST1](https://huggingface.co/datasets/OpenAssistant/oasst1) contain thousands of real conversations written by annotators. Synthetic datasets like [UltraChat](https://github.com/thunlp/UltraChat) scale this up to 1.5 million conversations generated by models and filtered for quality. Special tokens structure these conversations — markers like `<|im_start|>` and `<|im_end|>` tell the model where system prompts, user messages, and assistant responses begin and end. The model learns the rhythm of a conversation, not just the rhythm of text.
 
-SFT produces several critical behavioural changes. Models learn to say "I don't know" instead of fabricating answers — reducing hallucination. They learn to use tools — calling a search engine instead of guessing at facts. They learn step-by-step reasoning — showing their work instead of jumping to conclusions. None of this was present in the base model. It's all learned from examples.
+The effect is striking. Take our earlier example:
+
+```
+User: What is the capital of France?
+```
+
+Before SFT, the base model might generate more questions, continue a document, or produce anything statistically likely. After SFT, the model consistently responds:
+
+```
+Assistant: The capital of France is Paris.
+```
+
+It's learned from thousands of examples that when text is structured as a user question, the appropriate behaviour is to provide a direct, helpful answer. The same shift happens across every type of interaction. Ask for code, and it writes code instead of continuing a tutorial. Ask it to summarise, and it summarises instead of extending the text. Ask it something it doesn't know, and it says "I don't know" instead of fabricating an answer — because the training data included examples of that behaviour.
+
+SFT also teaches tool use. The training data includes examples where the assistant calls a search engine instead of guessing at facts, or runs code to verify an answer. And it teaches step-by-step reasoning — showing work instead of jumping to conclusions. None of these behaviours were present in the base model. They're all learned from examples.
 
 The economics are dramatic. Where pretraining takes months and costs millions, SFT takes hours or days and costs orders of magnitude less. The datasets are tiny compared to pretraining data — thousands or millions of examples versus trillions of tokens. But the behavioural shift is enormous. Think of it like learning to cook by studying recipes and practising writing them out. You get good at reproducing known dishes — following established patterns reliably.
 
@@ -42,11 +78,15 @@ The economics are dramatic. Where pretraining takes months and costs millions, S
 
 ## Stage 3: RLHF — Learning from Human Preferences
 
-Some tasks can't be graded automatically. Is this summary good? Is this explanation clear? Is this creative writing engaging? There's no formula for "better" — it requires human judgment. Reinforcement Learning from Human Feedback (RLHF) addresses this by learning a model of human preferences.
+SFT gets you a helpful assistant, but "helpful" is subjective. Ask a model to explain quantum mechanics and there are dozens of valid approaches — some clearer, some more accurate, some better matched to the audience. Is this summary good? Is this explanation clear? Is this creative writing engaging? There's no formula for "better" — it requires human judgment. Reinforcement Learning from Human Feedback (RLHF) addresses this by learning a model of human preferences.
 
-The process works like this: the model generates multiple responses to the same prompt, human annotators rank them from best to worst, and a **reward model** is trained to approximate those rankings. Once trained, the reward model can score any response — scaling evaluation from a few thousand human judgments to millions of model outputs. The language model is then optimised via reinforcement learning to produce responses that score higher on the reward model.
+The process works like this: the model generates multiple responses to the same prompt, human annotators rank them from best to worst, and a **reward model** is trained to approximate those rankings. For example, given the prompt "Explain why the sky is blue," the model might produce three responses — one that's technically accurate but dense, one that uses a good analogy but gets a detail wrong, and one that's clear and correct. Humans rank them, and the reward model learns to score responses the way humans would. Once trained, the reward model can score any response — scaling evaluation from a few thousand human judgments to millions of model outputs. The language model is then optimised via reinforcement learning to produce responses that score higher on the reward model.
 
-The limitation is that reward models are imperfect simulations of human judgment. Given enough optimisation pressure, models learn to "hack" the reward signal — producing outputs that score well on the reward model but aren't actually better by human standards. Karpathy notes that training caps are essential — typically 100 to 1,000 RL steps before the reward model's approximation starts breaking down. RLHF gets you meaningful improvements, but it has a ceiling.
+This works well for subjective quality — tone, clarity, helpfulness, safety. The early iterations produce genuine improvements. Responses get more natural, more careful, better structured. But there's a fundamental problem: the reward model is an approximation, not ground truth. It's a neural network trained to *simulate* human preferences, and it has blind spots.
+
+Given enough optimisation pressure, models learn to exploit those blind spots. This is called **reward hacking**. The model discovers patterns that score highly on the reward model but aren't actually better by human standards. It might learn that longer responses score higher (because annotators sometimes equate length with thoroughness), so it becomes verbose. It might learn that hedging language ("It's important to note that...") scores well, so it hedges everything. It might learn to produce confident-sounding but shallow answers that pattern-match what the reward model likes. The model isn't trying to be helpful — it's trying to maximise a score, and maximising a score is not the same thing.
+
+This is why Karpathy notes that training caps are essential — typically 100 to 1,000 RL steps. Early in RLHF training, the reward model's signal is genuinely useful and the model improves. But after too many steps, the model starts overfitting to the reward model's imperfections rather than actual quality. You have to cut it off before the gaming overtakes the gains. RLHF gets you meaningful improvements, but it has a ceiling — and pushing past that ceiling makes things worse, not better.
 
 ---
 
