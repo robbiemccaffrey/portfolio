@@ -105,6 +105,13 @@
     "type": "tool"
   },
   {
+    "title": "LM Studio",
+    "url": "https://lmstudio.ai/",
+    "description": "Free desktop app for running LLMs locally — supports downloading and running models like Qwen, Gemma, and DeepSeek with an OpenAI-compatible API.",
+    "category": "LLM Tools & Visualizations",
+    "type": "tool"
+  },
+  {
     "title": "Lambda AI",
     "url": "https://lambda.ai/",
     "description": "GPU cloud platform offering on-demand and reserved NVIDIA clusters for training and inference workloads.",
