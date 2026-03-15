@@ -1124,23 +1124,58 @@ RLVR also unlocked a new scaling axis: **test-time compute**. Instead of making 
 
 Karpathy notes that compute budgets shifted significantly in 2025 — away from pretraining and toward RL. Models stayed similar sizes but got dramatically smarter through longer reinforcement learning training runs. The returns from RLVR haven't plateaued the way RLHF's did.
 
-### Reasoning Models vs Standard Models — The New Landscape
+### Fine-Tuned (FT) Models vs Reasoning Models — The New Landscape
 
 RLVR created a split in the model landscape. There are now two distinct categories of LLM, and knowing which to use matters:
 
-**Standard models** (sometimes called "chat" or "instruct" models) go through pretraining + SFT + RLHF. They're fast, versatile, and good at most tasks — writing, summarising, translating, answering questions, generating code. They respond in one pass without extended internal deliberation.
+**Fine-tuned (FT) models** — also called chat or instruct models — go through pretraining + SFT + RLHF. These are what most people interact with daily. You type a question, and the model responds immediately with its best single-pass answer. It draws on everything it learned during pretraining, shaped by the conversational behaviour from SFT and the quality polish from RLHF. It doesn't deliberate. It doesn't check its work. It generates the most likely next tokens, one after another, until it's done. This makes FT models fast, cheap, and remarkably good at a huge range of tasks — writing, summarising, translating, answering questions, generating code, creative work.
 
-**Reasoning models** go through all of that *plus* RLVR. They spend extra time "thinking" before responding — generating an internal chain of reasoning that can run for thousands of tokens before producing a final answer. They're slower and more expensive to run, but dramatically better at problems that require multi-step logic.
+**Reasoning models** go through all of that *plus* RLVR. The difference is fundamental: before giving you an answer, the model generates an internal **chain of thought** — a reasoning trace that can run for hundreds or thousands of tokens. It breaks the problem into steps, tries approaches, catches its own mistakes, backtracks, and only then produces a final answer. This is genuinely different from an FT model thinking harder. The FT model doesn't think at all — it pattern-matches. The reasoning model has learned, through RLVR, to actually work through problems step by step.
+
+Here's what the difference looks like in practice:
 
 <div class="not-prose my-8">
   <div class="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-    <div class="px-5 py-2.5 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 font-sans text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Standard vs reasoning models — when to use which</div>
+    <div class="px-5 py-2.5 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 font-sans text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Same prompt, different model types</div>
+    <div class="px-4 py-6 sm:px-8 sm:py-8 space-y-4">
+      <div>
+        <div class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">Prompt</div>
+        <p class="text-sm font-mono text-gray-800 dark:text-gray-200">"A farmer has 17 sheep. All but 9 run away. How many are left?"</p>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-4">
+          <div class="text-xs font-bold text-blue-600 dark:text-blue-400 mb-2">FT model — instant response</div>
+          <p class="text-sm text-gray-700 dark:text-gray-300">"The farmer has 17 - 9 = 8 sheep left."</p>
+          <div class="mt-3 rounded bg-red-100 dark:bg-red-900/30 px-3 py-2">
+            <p class="text-xs text-red-700 dark:text-red-300"><strong>Wrong.</strong> The model pattern-matched "17" and "9" into a subtraction. It didn't parse the trick wording. Fast but wrong.</p>
+          </div>
+        </div>
+        <div class="rounded-lg border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/20 p-4">
+          <div class="text-xs font-bold text-purple-600 dark:text-purple-400 mb-2">Reasoning model — thinks first</div>
+          <div class="text-xs font-mono text-gray-400 dark:text-gray-500 mb-2 italic">
+            Thinking: "All but 9 run away" means 9 remain.<br/>
+            The number 17 is a distraction.<br/>
+            The answer is 9.
+          </div>
+          <p class="text-sm text-gray-700 dark:text-gray-300">"9 sheep are left. 'All but 9 run away' means 9 stay — the 17 is there to mislead."</p>
+          <div class="mt-3 rounded bg-emerald-100 dark:bg-emerald-900/30 px-3 py-2">
+            <p class="text-xs text-emerald-700 dark:text-emerald-300"><strong>Correct.</strong> The reasoning trace caught the trick wording before answering. Slower but right.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="not-prose my-8">
+  <div class="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div class="px-5 py-2.5 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 font-sans text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">FT vs reasoning models — when to use which</div>
     <div class="px-4 py-2 sm:px-8">
       <table class="w-full text-sm">
         <thead>
           <tr class="border-b border-gray-200 dark:border-gray-700">
             <th class="py-3 text-left font-semibold text-gray-700 dark:text-gray-300"></th>
-            <th class="py-3 text-left font-semibold text-blue-700 dark:text-blue-300">Standard models</th>
+            <th class="py-3 text-left font-semibold text-blue-700 dark:text-blue-300">Fine-tuned (FT) models</th>
             <th class="py-3 text-left font-semibold text-purple-700 dark:text-purple-300">Reasoning models</th>
           </tr>
         </thead>
@@ -1151,24 +1186,34 @@ RLVR created a split in the model landscape. There are now two distinct categori
             <td class="py-2.5">Pretrain + SFT + RLHF + <strong class="text-purple-600 dark:text-purple-400">RLVR</strong></td>
           </tr>
           <tr class="border-b border-gray-100 dark:border-gray-800">
+            <td class="py-2.5 font-medium text-gray-700 dark:text-gray-300">How it responds</td>
+            <td class="py-2.5">Single pass — immediate answer</td>
+            <td class="py-2.5">Chain of thought — reasons, then answers</td>
+          </tr>
+          <tr class="border-b border-gray-100 dark:border-gray-800">
             <td class="py-2.5 font-medium text-gray-700 dark:text-gray-300">Speed</td>
-            <td class="py-2.5">Fast — responds immediately</td>
-            <td class="py-2.5">Slower — "thinks" before answering</td>
+            <td class="py-2.5">Fast — sub-second for simple queries</td>
+            <td class="py-2.5">Slower — seconds to minutes for hard problems</td>
           </tr>
           <tr class="border-b border-gray-100 dark:border-gray-800">
             <td class="py-2.5 font-medium text-gray-700 dark:text-gray-300">Cost</td>
             <td class="py-2.5">Cheaper per query</td>
-            <td class="py-2.5">More expensive (longer outputs)</td>
+            <td class="py-2.5">3-10× more expensive (thinking tokens add up)</td>
           </tr>
           <tr class="border-b border-gray-100 dark:border-gray-800">
             <td class="py-2.5 font-medium text-gray-700 dark:text-gray-300">Best for</td>
-            <td class="py-2.5">Writing, chat, summarisation, translation, simple code, Q&A</td>
-            <td class="py-2.5">Maths, complex code, logic puzzles, multi-step analysis, research</td>
+            <td class="py-2.5">Writing, chat, summarisation, translation, Q&A, simple code, creative work</td>
+            <td class="py-2.5">Maths, complex debugging, logic puzzles, multi-step analysis, architecture decisions</td>
           </tr>
           <tr class="border-b border-gray-100 dark:border-gray-800">
             <td class="py-2.5 font-medium text-gray-700 dark:text-gray-300">Overkill for</td>
             <td class="py-2.5">—</td>
             <td class="py-2.5">Simple questions, casual chat, basic drafting</td>
+          </tr>
+          <tr class="border-b border-gray-100 dark:border-gray-800">
+            <td class="py-2.5 font-medium text-gray-700 dark:text-gray-300">Examples</td>
+            <td class="py-2.5">GPT-4o, Claude Sonnet, Llama 3</td>
+            <td class="py-2.5">o1, o3, Claude Opus, DeepSeek-R1</td>
           </tr>
         </tbody>
       </table>
@@ -1188,7 +1233,7 @@ Here's how the major providers map to this landscape:
           <div class="space-y-1.5">
             <div class="flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-blue-400 shrink-0"></span>
-              <span class="text-sm text-gray-700 dark:text-gray-300">GPT-4o <span class="text-xs text-gray-400">(standard)</span></span>
+              <span class="text-sm text-gray-700 dark:text-gray-300">GPT-4o <span class="text-xs text-gray-400">(FT)</span></span>
             </div>
             <div class="flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-purple-400 shrink-0"></span>
@@ -1205,7 +1250,7 @@ Here's how the major providers map to this landscape:
           <div class="space-y-1.5">
             <div class="flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-blue-400 shrink-0"></span>
-              <span class="text-sm text-gray-700 dark:text-gray-300">Claude Sonnet <span class="text-xs text-gray-400">(standard)</span></span>
+              <span class="text-sm text-gray-700 dark:text-gray-300">Claude Sonnet <span class="text-xs text-gray-400">(FT)</span></span>
             </div>
             <div class="flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-purple-400 shrink-0"></span>
@@ -1213,7 +1258,7 @@ Here's how the major providers map to this landscape:
             </div>
             <div class="flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-blue-400 shrink-0"></span>
-              <span class="text-sm text-gray-700 dark:text-gray-300">Claude Haiku <span class="text-xs text-gray-400">(fast/cheap)</span></span>
+              <span class="text-sm text-gray-700 dark:text-gray-300">Claude Haiku <span class="text-xs text-gray-400">(FT, fast/cheap)</span></span>
             </div>
           </div>
         </div>
@@ -1222,7 +1267,7 @@ Here's how the major providers map to this landscape:
           <div class="space-y-1.5">
             <div class="flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-blue-400 shrink-0"></span>
-              <span class="text-sm text-gray-700 dark:text-gray-300">Llama 3 <span class="text-xs text-gray-400">(standard)</span></span>
+              <span class="text-sm text-gray-700 dark:text-gray-300">Llama 3 <span class="text-xs text-gray-400">(FT)</span></span>
             </div>
             <div class="flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-purple-400 shrink-0"></span>
@@ -1238,7 +1283,7 @@ Here's how the major providers map to this landscape:
       <div class="flex items-center gap-4 pt-2 border-t border-gray-100 dark:border-gray-800">
         <div class="flex items-center gap-1.5">
           <span class="w-2 h-2 rounded-full bg-blue-400"></span>
-          <span class="text-xs text-gray-500 dark:text-gray-400">Standard — fast, versatile, cheaper</span>
+          <span class="text-xs text-gray-500 dark:text-gray-400">FT — fast, versatile, cheaper</span>
         </div>
         <div class="flex items-center gap-1.5">
           <span class="w-2 h-2 rounded-full bg-purple-400"></span>
@@ -1249,7 +1294,7 @@ Here's how the major providers map to this landscape:
   </div>
 </div>
 
-The practical rule of thumb: use a standard model for everyday tasks (drafting emails, summarising, quick questions) and switch to a reasoning model when the problem requires genuine multi-step thinking (debugging complex code, solving maths problems, planning a system architecture). Using a reasoning model to summarise an email is like hiring a structural engineer to hang a picture frame — it'll work, but you're paying for capability you don't need.
+The practical rule of thumb: use an FT model for everyday tasks — drafting emails, summarising documents, quick questions, creative writing — and switch to a reasoning model when the problem requires genuine multi-step thinking: debugging complex code, solving maths competition problems, planning a system architecture, or anything where a wrong first instinct needs to be caught and corrected. Using a reasoning model to summarise an email is like hiring a structural engineer to hang a picture frame — it'll work, but you're paying for capability you don't need.
 
 ---
 
