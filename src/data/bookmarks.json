@@ -91,6 +91,13 @@
     "type": "tool"
   },
   {
+    "title": "Arena AI Leaderboard",
+    "url": "https://arena.ai/leaderboard",
+    "description": "Community-driven platform ranking AI models across text, code, vision, and generative tasks via side-by-side comparisons and user votes.",
+    "category": "LLM Tools & Visualizations",
+    "type": "tool"
+  },
+  {
     "title": "Lambda AI",
     "url": "https://lambda.ai/",
     "description": "GPU cloud platform offering on-demand and reserved NVIDIA clusters for training and inference workloads.",
